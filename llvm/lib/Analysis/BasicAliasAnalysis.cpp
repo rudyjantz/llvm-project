@@ -767,6 +767,7 @@ static bool notDifferentParent(const Value *O1, const Value *O2) {
 
 AliasResult BasicAAResult::alias(const MemoryLocation &LocA,
                                  const MemoryLocation &LocB) {
+  LLVM_DEBUG(dbgs() << "BasicAAResult::alias()\n");
   assert(notDifferentParent(LocA.Ptr, LocB.Ptr) &&
          "BasicAliasAnalysis doesn't support interprocedural queries.");
 
@@ -796,6 +797,8 @@ AliasResult BasicAAResult::alias(const MemoryLocation &LocA,
 /// analysis on local objects.
 ModRefInfo BasicAAResult::getModRefInfo(ImmutableCallSite CS,
                                         const MemoryLocation &Loc) {
+  LLVM_DEBUG(dbgs() << "BasicAAResult::getModRefInfo ImmutableCallSite, "
+                    << "MemoryLocation\n");
   assert(notDifferentParent(CS.getInstruction(), Loc.Ptr) &&
          "AliasAnalysis query involving multiple functions!");
 
@@ -966,6 +969,8 @@ ModRefInfo BasicAAResult::getModRefInfo(ImmutableCallSite CS,
 
 ModRefInfo BasicAAResult::getModRefInfo(ImmutableCallSite CS1,
                                         ImmutableCallSite CS2) {
+  LLVM_DEBUG(dbgs() << "BasicAAResult::getModRefInfo ImmutableCallSite\n");
+
   // While the assume intrinsic is marked as arbitrarily writing so that
   // proper control dependencies will be maintained, it never aliases any
   // particular memory location.
@@ -1943,6 +1948,7 @@ FunctionPass *llvm::createBasicAAWrapperPass() {
 }
 
 bool BasicAAWrapperPass::runOnFunction(Function &F) {
+  LLVM_DEBUG(dbgs() << "BasicAAWrapperPass::runOnFunction\n");
   auto &ACT = getAnalysis<AssumptionCacheTracker>();
   auto &TLIWP = getAnalysis<TargetLibraryInfoWrapperPass>();
   auto &DTWP = getAnalysis<DominatorTreeWrapperPass>();
@@ -1958,6 +1964,7 @@ bool BasicAAWrapperPass::runOnFunction(Function &F) {
 }
 
 void BasicAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
+  LLVM_DEBUG(dbgs() << "BasicAAWrapperPass::getAnalysisUsage\n");
   AU.setPreservesAll();
   AU.addRequired<AssumptionCacheTracker>();
   AU.addRequired<DominatorTreeWrapperPass>();

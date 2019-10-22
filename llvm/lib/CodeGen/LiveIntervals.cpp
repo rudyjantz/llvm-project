@@ -124,6 +124,7 @@ void LiveIntervals::releaseMemory() {
 }
 
 bool LiveIntervals::runOnMachineFunction(MachineFunction &fn) {
+  LLVM_DEBUG(dbgs() << "LiveIntervals::runOnMachineFunction\n");
   MF = &fn;
   MRI = &MF->getRegInfo();
   TRI = MF->getSubtarget().getRegisterInfo();
