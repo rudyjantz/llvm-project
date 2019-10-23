@@ -16,12 +16,12 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 
-#include "include/DynamicInfo.h"
-#include "include/ValueMap.h"
-#include "include/CallInfo.h"
-#include "include/lib/IndirFcnTarget.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/CallContextPass.h"
+#include "llvm/Oha/DynamicInfo.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/CallInfo.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/CallContextPass.h"
 
 class DynamicInfo {
  public:

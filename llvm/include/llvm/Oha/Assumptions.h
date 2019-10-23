@@ -11,11 +11,11 @@
 #include <set>
 #include <vector>
 
-#include "include/util.h"
+#include "llvm/Oha/util.h"
 
-#include "include/ValueMap.h"
-#include "include/ExtInfo.h"
-#include "include/SolveHelpers.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/SolveHelpers.h"
 
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"

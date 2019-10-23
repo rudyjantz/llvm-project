@@ -22,8 +22,8 @@
 #include <utility>
 #include <vector>
 
-#include "include/Debug.h"
-#include "include/util.h"
+#include "llvm/Oha/Debug.h"
+#include "llvm/Oha/util.h"
 
 class ValueMap;
 

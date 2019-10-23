@@ -143,7 +143,7 @@ template <typename visit>
 void foreach_used_bb(llvm::Module &m, const UnusedFunctions &dyn_info,
     visit visit_fcn) {
   foreach_used_fcn(m, dyn_info,
-    [&visit_fcn, &dyn_info](auto pfcn) {
+    [&visit_fcn, &dyn_info](llvm::Function *pfcn) {
       for (auto &bb : *pfcn) {
         if (!dyn_info.isUsed(bb)) {
           continue;
@@ -158,7 +158,7 @@ template <typename visit>
 void foreach_used_inst(llvm::Module &m, const UnusedFunctions &dyn_info,
     visit visit_fcn) {
   foreach_used_bb(m, dyn_info,
-      [&visit_fcn](auto pbb) {
+      [&visit_fcn](llvm::BasicBlock *pbb) {
         for (auto &inst : *pbb) {
           visit_fcn(&inst);
         }

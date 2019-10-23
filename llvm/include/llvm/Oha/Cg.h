@@ -19,18 +19,18 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 
-#include "include/CgOpt.h"
+#include "llvm/Oha/CgOpt.h"
 
-#include "include/CallInfo.h"
-#include "include/CsFcnCFG.h"
-#include "include/DynamicInfo.h"
-#include "include/ExtInfo.h"
-#include "include/ModInfo.h"
-#include "include/ValueMap.h"
-#include "include/lib/BasicFcnCFG.h"
-#include "include/lib/CsCFG.h"
-#include "include/lib/IndirFcnTarget.h"
-#include "include/lib/UnusedFunctions.h"
+#include "llvm/Oha/CallInfo.h"
+#include "llvm/Oha/CsFcnCFG.h"
+#include "llvm/Oha/DynamicInfo.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/ModInfo.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/lib/BasicFcnCFG.h"
+#include "llvm/Oha/lib/CsCFG.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
 
 enum class ConstraintType { Copy = 0, Load = 1, Store = 2, AddressOf = 3 };
 class Constraint {

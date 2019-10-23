@@ -11,8 +11,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "include/util.h"
-#include "include/CallInfo.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/CallInfo.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/Support/raw_ostream.h"

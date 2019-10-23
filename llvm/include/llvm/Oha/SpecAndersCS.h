@@ -10,11 +10,11 @@
 #include <set>
 #include <vector>
 
-#include "include/AndersGraph.h"
-#include "include/Assumptions.h"
-#include "include/ConstraintPass.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/AndersGraph.h"
+#include "llvm/Oha/Assumptions.h"
+#include "llvm/Oha/ConstraintPass.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

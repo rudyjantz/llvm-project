@@ -19,12 +19,12 @@
 #include <utility>
 #include <vector>
 
-#include "include/util.h"
-#include "include/ConstraintGraph.h"
-#include "include/ControlFlowGraph.h"
-#include "include/ObjectMap.h"
-#include "include/SEG.h"
-#include "include/SolveHelpers.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/ConstraintGraph.h"
+#include "llvm/Oha/ControlFlowGraph.h"
+#include "llvm/Oha/ObjectMap.h"
+#include "llvm/Oha/SEG.h"
+#include "llvm/Oha/SolveHelpers.h"
 
 class DUG;
 // An individual node within the DUG

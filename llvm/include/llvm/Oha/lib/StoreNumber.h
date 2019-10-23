@@ -8,8 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/util.h"
-#include "include/lib/UnusedFunctions.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

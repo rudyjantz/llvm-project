@@ -13,8 +13,8 @@
 #include <utility>
 #include <vector>
 
-#include "include/Debug.h"
-#include "include/util.h"
+#include "llvm/Oha/Debug.h"
+#include "llvm/Oha/util.h"
 
 // Don't use llvm includes in unit tests
 #include "llvm/IR/Constants.h"

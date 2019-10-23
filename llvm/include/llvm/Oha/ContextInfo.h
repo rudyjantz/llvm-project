@@ -14,17 +14,17 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/util.h"
-#include "include/SEG.h"
-#include "include/ValueMap.h"
-#include "include/lib/BBNumber.h"
-#include "include/lib/BddSet.h"
-#include "include/lib/CallContextPass.h"
-#include "include/lib/CallDests.h"
-#include "include/lib/CsCFG.h"
-#include "include/lib/FcnCFG.h"
-#include "include/lib/StoreNumber.h"
-#include "include/lib/UnusedFunctions.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/SEG.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/lib/BBNumber.h"
+#include "llvm/Oha/lib/BddSet.h"
+#include "llvm/Oha/lib/CallContextPass.h"
+#include "llvm/Oha/lib/CallDests.h"
+#include "llvm/Oha/lib/CsCFG.h"
+#include "llvm/Oha/lib/FcnCFG.h"
+#include "llvm/Oha/lib/StoreNumber.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

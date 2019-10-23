@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-#include "include/Debug.h"
+#include "llvm/Oha/Debug.h"
 #include "llvm/Support/Debug.h"
 
 #ifdef SPECSFS_NOTIMERS

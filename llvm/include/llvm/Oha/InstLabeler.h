@@ -11,9 +11,9 @@
 #include <vector>
 #include <utility>
 
-#include "include/util.h"
+#include "llvm/Oha/util.h"
 
-#include "include/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
 
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"

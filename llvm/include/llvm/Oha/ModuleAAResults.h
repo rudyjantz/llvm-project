@@ -5,8 +5,8 @@
 #ifndef INCLUDE_MODULEAARESULTS_H_
 #define INCLUDE_MODULEAARESULTS_H_
 
-#include "include/SpecAnders.h"
-#include "include/SpecAndersCS.h"
+#include "llvm/Oha/SpecAnders.h"
+#include "llvm/Oha/SpecAndersCS.h"
 
 class ModuleAAResults : public llvm::ModulePass {
  public:

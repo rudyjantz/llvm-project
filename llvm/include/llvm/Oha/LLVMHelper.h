@@ -7,9 +7,9 @@
 
 #include <unordered_set>
 
-#include "include/Debug.h"
-#include "include/ModInfo.h"
-#include "include/lib/UnusedFunctions.h"
+#include "llvm/Oha/Debug.h"
+#include "llvm/Oha/ModInfo.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/BasicBlock.h"

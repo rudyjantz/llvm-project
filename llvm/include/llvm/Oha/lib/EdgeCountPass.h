@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/util.h"
+#include "llvm/Oha/util.h"
 
 #include "llvm/Pass.h"
 #include "llvm/ADT/StringRef.h"

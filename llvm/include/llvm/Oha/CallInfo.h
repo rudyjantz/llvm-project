@@ -10,8 +10,8 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Instruction.h"
 
-#include "include/util.h"
-#include "include/ValueMap.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/ValueMap.h"
 
 class Cg;
 class CallInfo {

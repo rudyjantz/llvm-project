@@ -5,12 +5,12 @@
 #ifndef INCLUDE_CONSTRAINTPASS_H_
 #define INCLUDE_CONSTRAINTPASS_H_
 
-#include "include/Assumptions.h"
-#include "include/Cg.h"
-#include "include/ExtInfo.h"
-#include "include/ModInfo.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/Assumptions.h"
+#include "llvm/Oha/Cg.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/ModInfo.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

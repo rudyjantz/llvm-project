@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include "include/ConstraintGraph.h"
-#include "include/ObjectMap.h"
-#include "include/SolveHelpers.h"
+#include "llvm/Oha/ConstraintGraph.h"
+#include "llvm/Oha/ObjectMap.h"
+#include "llvm/Oha/SolveHelpers.h"
 
 class AndersGraph;
 class AndersNode;

@@ -21,8 +21,8 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Support/Debug.h"
 
-#include "include/ExtInfo.h"
-#include "include/SolveHelpers.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/SolveHelpers.h"
 
 class DynPtstoLoader : public llvm::ModulePass {
  public:

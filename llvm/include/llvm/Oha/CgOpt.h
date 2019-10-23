@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-#include "include/util.h"
+#include "llvm/Oha/util.h"
 
 template<typename id_type>
 class PredNode {

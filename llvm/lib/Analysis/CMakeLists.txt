@@ -87,9 +87,49 @@ add_llvm_library(LLVMAnalysis
   ValueLatticeUtils.cpp
   ValueTracking.cpp
   VectorUtils.cpp
+  AliasTest.cpp
+  AndersGraph.cpp
+  Assumptions.cpp
+  BBNumber.cpp
+  BasicFcnCFG.cpp
+  BddSet.cpp
+  CallDests.cpp
+  CallInfo.cpp
+  Cg.cpp
+  CgOptimize.cpp
+  ConstraintPass.cpp
+  ContextInfo.cpp
+  CountObservations.cpp
+  CsCFG.cpp
+  CsFcnCFG.cpp
+  CsSolve.cpp
+  Debug.cpp
+  DynPtstoOpt.cpp
+  ExitInst.cpp
+  ExtInfo.cpp
+  FcnCFG.cpp
+  IdentifyObjects.cpp
+  InsertSpecAssumptions.cpp
+  InstPrinter.cpp
+  ModuleAAResults.cpp
+  PrintID.cpp
+  ProfDisabler.cpp
+  PtsNumberPass.cpp
+  Solve.cpp
+  SolveHelpers.cpp
+  SpecAnders.cpp
+  SpecAndersCS.cpp
+  SpecCsCFG.cpp
+  StaticSlice.cpp
+  StaticSliceCounter.cpp
+  StoreNumber.cpp
+  TestAA.cpp
+  UnusedFunctions.cpp
+  ValueMap.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Analysis
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Analysis/Oha
 
   DEPENDS
   intrinsics_gen

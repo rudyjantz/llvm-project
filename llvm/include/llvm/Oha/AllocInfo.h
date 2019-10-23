@@ -16,7 +16,7 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 
-#include "include/LLVMHelper.h"
+#include "llvm/Oha/LLVMHelper.h"
 
 class AllocInfo {
  public:

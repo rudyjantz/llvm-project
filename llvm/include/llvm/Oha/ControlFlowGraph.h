@@ -8,9 +8,9 @@
 #include <map>
 #include <vector>
 
-#include "include/util.h"
-#include "include/ConstraintGraph.h"
-#include "include/SEG.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/ConstraintGraph.h"
+#include "llvm/Oha/SEG.h"
 
 #include "llvm/ADT/iterator_range.h"
 

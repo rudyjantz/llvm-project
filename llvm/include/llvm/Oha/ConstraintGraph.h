@@ -5,10 +5,10 @@
 #ifndef INCLUDE_CONSTRAINTGRAPH_H_
 #define INCLUDE_CONSTRAINTGRAPH_H_
 
-#include "include/ObjectMap.h"
+#include "llvm/Oha/ObjectMap.h"
 
-#include "include/SEG.h"
-#include "include/Debug.h"
+#include "llvm/Oha/SEG.h"
+#include "llvm/Oha/Debug.h"
 
 #include <utility>
 

@@ -5,9 +5,9 @@
 #ifndef INCLUDE_LIB_PTSNUMBERPASS_H_
 #define INCLUDE_LIB_PTSNUMBERPASS_H_
 
-#include "include/ExtInfo.h"
-#include "include/ModInfo.h"
-#include "include/ValueMap.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/ModInfo.h"
+#include "llvm/Oha/ValueMap.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/Pass.h"

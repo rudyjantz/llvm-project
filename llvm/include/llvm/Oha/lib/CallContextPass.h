@@ -10,10 +10,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/util.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
-#include "include/lib/CsCFG.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
+#include "llvm/Oha/lib/CsCFG.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

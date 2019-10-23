@@ -5,7 +5,7 @@
 #ifndef INCLUDE_LIB_EXITINST_H_
 #define INCLUDE_LIB_EXITINST_H_
 
-#include "include/Debug.h"
+#include "llvm/Oha/Debug.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/BasicBlock.h"

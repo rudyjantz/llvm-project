@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "include/ValueMap.h"
-#include "include/SolveHelpers.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/SolveHelpers.h"
 
 class AndersGraph;
 class AndersNode;

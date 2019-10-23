@@ -9,12 +9,12 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/util.h"
-#include "include/DynamicInfo.h"
-#include "include/SEG.h"
-#include "include/Tarjans.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/DynamicInfo.h"
+#include "llvm/Oha/SEG.h"
+#include "llvm/Oha/Tarjans.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

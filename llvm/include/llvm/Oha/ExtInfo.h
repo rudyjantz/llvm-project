@@ -18,9 +18,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/CallSite.h"
 
-#include "include/ValueMap.h"
-#include "include/ModInfo.h"
-#include "include/LLVMHelper.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/ModInfo.h"
+#include "llvm/Oha/LLVMHelper.h"
 
 
 enum class AllocStatus {

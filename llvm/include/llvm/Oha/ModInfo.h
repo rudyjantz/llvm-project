@@ -7,8 +7,8 @@
 
 #include "llvm/IR/Function.h"
 
-#include "include/util.h"
-#include "include/ValueMap.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/ValueMap.h"
 
 #include <map>
 #include <vector>

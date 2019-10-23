@@ -19,8 +19,8 @@
 
 #include "llvm/ADT/SparseBitVector.h"
 
-#include "include/util.h"
-#include "include/Cg.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/Cg.h"
 
 // Bitmap used in many places (and by Andersen's) to represent ptsto
 // typedef llvm::SparseBitVector<> Bitmap;

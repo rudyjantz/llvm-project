@@ -6,7 +6,7 @@
 
 #include <vector>
 
-#include "include/SEG.h"
+#include "llvm/Oha/SEG.h"
 
 class should_visit_default {
  public:

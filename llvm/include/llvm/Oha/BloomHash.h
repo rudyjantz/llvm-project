@@ -15,7 +15,7 @@
 #include <array>
 #include <functional>
 
-// #include "include/util.h"
+// #include "llvm/Oha/util.h"
 
 constexpr bool is_power_of_two(size_t x) {
   return x && ((x & (x-1)) == 0);

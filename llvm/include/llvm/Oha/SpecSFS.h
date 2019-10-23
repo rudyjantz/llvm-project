@@ -9,14 +9,14 @@
 #include <memory>
 #include <vector>
 
-#include "include/Assumptions.h"
-#include "include/ConstraintPass.h"
-#include "include/DUG.h"
-#include "include/ExtInfo.h"
-#include "include/ObjectMap.h"
-#include "include/SpecAnders.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/Assumptions.h"
+#include "llvm/Oha/ConstraintPass.h"
+#include "llvm/Oha/DUG.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/ObjectMap.h"
+#include "llvm/Oha/SpecAnders.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/Function.h"

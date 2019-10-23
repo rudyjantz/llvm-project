@@ -9,11 +9,11 @@
 #include <memory>
 #include <vector>
 
-#include "include/AndersGraph.h"
-#include "include/Assumptions.h"
-#include "include/Cg.h"
-#include "include/ValueMap.h"
-#include "include/ConstraintPass.h"
+#include "llvm/Oha/AndersGraph.h"
+#include "llvm/Oha/Assumptions.h"
+#include "llvm/Oha/Cg.h"
+#include "llvm/Oha/ValueMap.h"
+#include "llvm/Oha/ConstraintPass.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

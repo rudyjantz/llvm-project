@@ -21,10 +21,10 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Support/Debug.h"
 
-#include "include/SolveHelpers.h"
-#include "include/ValueMap.h"
+#include "llvm/Oha/SolveHelpers.h"
+#include "llvm/Oha/ValueMap.h"
 
-#include "include/InstPrinter.h"
+#include "llvm/Oha/InstPrinter.h"
 
 class DynAliasLoader : public llvm::ModulePass {
  public:
