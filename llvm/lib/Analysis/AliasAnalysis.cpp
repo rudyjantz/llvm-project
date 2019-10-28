@@ -55,6 +55,8 @@
 #include <functional>
 #include <iterator>
 
+#include "llvm/Oha/SpecAnders.h"
+
 using namespace llvm;
 
 /// Allow disabling BasicAA from the AA results. This is particularly useful
@@ -769,6 +771,7 @@ void AAResultsWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addUsedIfAvailable<SCEVAAWrapperPass>();
   AU.addUsedIfAvailable<CFLAndersAAWrapperPass>();
   AU.addUsedIfAvailable<CFLSteensAAWrapperPass>();
+  AU.addUsedIfAvailable<SpecAndersWrapperPass>();
 }
 
 AAResults llvm::createLegacyPMAAResults(Pass &P, Function &F,

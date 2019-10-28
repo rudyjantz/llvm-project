@@ -61,8 +61,8 @@
 #include <cstdlib>
 #include <utility>
 
-//#include "llvm/Oha/SpecAndersCS.h"
-#include "llvm/Oha/SpecAnders.h"
+#include "llvm/Oha/SpecAndersCS.h"
+//#include "llvm/Oha/SpecAnders.h"
 
 #define DEBUG_TYPE "basicaa"
 
@@ -783,6 +783,8 @@ AliasResult BasicAAResult::alias(const MemoryLocation &LocA,
 
   AliasResult Alias = aliasCheck(LocA.Ptr, LocA.Size, LocA.AATags, LocB.Ptr,
                                  LocB.Size, LocB.AATags);
+
+  LLVM_DEBUG(dbgs() << "BasicAAResult::alias() Alias: " << Alias << "\n");
   // AliasCache rarely has more than 1 or 2 elements, always use
   // shrink_and_clear so it quickly returns to the inline capacity of the
   // SmallDenseMap if it ever grows larger.
@@ -1957,7 +1959,6 @@ bool BasicAAWrapperPass::runOnFunction(Function &F) {
   auto &DTWP = getAnalysis<DominatorTreeWrapperPass>();
   auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
   auto *PVWP = getAnalysisIfAvailable<PhiValuesWrapperPass>();
-  auto *SAWP = getAnalysisIfAvailable<SpecAndersWrapperPass>();
 
   Result.reset(new BasicAAResult(F.getParent()->getDataLayout(), F, TLIWP.getTLI(),
                                  ACT.getAssumptionCache(F), &DTWP.getDomTree(),
