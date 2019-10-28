@@ -2,7 +2,7 @@
  * Copyright (C) 2015 David Devecsery
  */
 
-#include "include/lib/CallContextPass.h"
+#include "llvm/Oha/lib/CallContextPass.h"
 
 #include <algorithm>
 #include <iostream>
@@ -11,11 +11,11 @@
 #include <sstream>
 #include <vector>
 
-#include "include/util.h"
-#include "include/LLVMHelper.h"
-#include "include/lib/CsCFG.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/LLVMHelper.h"
+#include "llvm/Oha/lib/CsCFG.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

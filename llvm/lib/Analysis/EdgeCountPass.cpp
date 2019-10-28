@@ -2,7 +2,7 @@
  * Copyright (C) 2016 David Devecsery
  */
 
-#include "include/lib/EdgeCountPass.h"
+#include "llvm/Oha/lib/EdgeCountPass.h"
 
 #include <algorithm>
 #include <iostream>
@@ -12,13 +12,13 @@
 #include <sstream>
 #include <vector>
 
-#include "include/util.h"
-#include "include/LLVMHelper.h"
-#include "include/lib/CallDests.h"
-#include "include/lib/CsCFG.h"
-#include "include/lib/ExitInst.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/util.h"
+#include "llvm/Oha/LLVMHelper.h"
+#include "llvm/Oha/lib/CallDests.h"
+#include "llvm/Oha/lib/CsCFG.h"
+#include "llvm/Oha/lib/ExitInst.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"

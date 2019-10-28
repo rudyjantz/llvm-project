@@ -2,7 +2,7 @@
  * Copyright (C) 2015 David Devecsery
  */
 
-#include "include/lib/IndirFcnTarget.h"
+#include "llvm/Oha/lib/IndirFcnTarget.h"
 
 #include <cstdio>
 
@@ -29,7 +29,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/MathExtras.h"
 
-#include "include/LLVMHelper.h"
+#include "llvm/Oha/LLVMHelper.h"
 
 static llvm::cl::opt<std::string>
   IndirFcnFilename("indir-info-file", llvm::cl::init("dyn_indir.log"),

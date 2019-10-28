@@ -2,7 +2,7 @@
  * Copyright (C) 2015 David Devecsery
  */
 
-#include "include/lib/DynAlias.h"
+#include "llvm/Oha/lib/DynPtsto.h"
 
 #include <cstdio>
 
@@ -31,49 +31,61 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/MathExtras.h"
 
-#include "include/LLVMHelper.h"
-#include "include/ExtInfo.h"
-#include "include/ModuleAAResults.h"
-#include "include/lib/UnusedFunctions.h"
-#include "include/lib/PtsNumberPass.h"
+#include "llvm/Oha/AllocInfo.h"
+#include "llvm/Oha/Cg.h"
+#include "llvm/Oha/ConstraintPass.h"
+#include "llvm/Oha/ExtInfo.h"
+#include "llvm/Oha/LLVMHelper.h"
+#include "llvm/Oha/lib/UnusedFunctions.h"
+
+static llvm::cl::opt<bool>
+  print_dyn_ptsto("dyn-ptsto-print-stats", llvm::cl::init(false),
+      llvm::cl::value_desc("bool"),
+      llvm::cl::desc("if set DynPtstoLoader will print the ptstos counts "
+        "gathered from the run"));
 
 static llvm::cl::opt<std::string>
-  DynAliasFilename("dyn-alias-file", llvm::cl::init("dyn_alias.log"),
+  DynPtstoFilename("dyn-ptsto-file", llvm::cl::init("dyn_ptsto.log"),
       llvm::cl::value_desc("filename"),
       llvm::cl::desc("Ptsto file saved/loaded by DynPtsto analysis"));
 
+static llvm::cl::opt<bool>
+  dyn_ptsto_no_gep("dyn-ptsto-no-gep", llvm::cl::init(false),
+      llvm::cl::value_desc("bool"),
+      llvm::cl::desc("If set the dynamic information will be gathered without "
+        "structure field information"));
+
 // First and last functions called
-static const std::string InitInstName = "__DynAlias_do_init";
-static const std::string FinishInstName = "__DynAlias_do_finish";
+static const std::string InitInstName = "__DynPtsto_do_init";
+static const std::string FinishInstName = "__DynPtsto_do_finish";
 
 // Called to initialize the arguments to main
-static const std::string MainInit2Name = "__DynAlias_main_init2";
-static const std::string MainInit3Name = "__DynAlias_main_init3";
+static const std::string MainInit2Name = "__DynPtsto_main_init2";
+static const std::string MainInit3Name = "__DynPtsto_main_init3";
 
 // Called on alloc/free
-static const std::string AllocaInstName = "__DynAlias_do_alloca";
-static const std::string CallInstName = "__DynAlias_do_call";
-static const std::string RetInstName = "__DynAlias_do_ret";
-static const std::string MallocInstName = "__DynAlias_do_malloc";
-static const std::string FreeInstName = "__DynAlias_do_free";
-
-// For load/store alias support
-static const std::string LoadInstName = "__DynAlias_do_load";
-static const std::string StoreInstName = "__DynAlias_do_store";
+static const std::string AllocaInstName = "__DynPtsto_do_alloca";
+static const std::string CallInstName = "__DynPtsto_do_call";
+static const std::string RetInstName = "__DynPtsto_do_ret";
+static const std::string MallocInstName = "__DynPtsto_do_malloc";
+static const std::string FreeInstName = "__DynPtsto_do_free";
 
 // setjump/longjmp *sigh*
-static const std::string SetjmpInstName = "__DynAlias_do_setjmp";
-static const std::string LongjmpInstName = "__DynAlias_do_longjmp";
+static const std::string SetjmpInstName = "__DynPtsto_do_setjmp";
+static const std::string LongjmpInstName = "__DynPtsto_do_longjmp";
 
 // For GEPs
-// static const std::string GEPInstName = "__DynAlias_do_gep";
+static const std::string GEPInstName = "__DynPtsto_do_gep";
+
+// Called on ptr returnin fcn
+static const std::string VisitInstName = "__DynPtsto_do_visit";
 
 // Instrument dyn ptsto info {{{
-class InstrDynAlias : public llvm::ModulePass {
+class InstrDynPtsto : public llvm::ModulePass {
  public:
     static char ID;
 
-    InstrDynAlias() : llvm::ModulePass(ID) { }
+    InstrDynPtsto() : llvm::ModulePass(ID) { }
 
     bool runOnModule(llvm::Module &m) override;
 
@@ -83,7 +95,7 @@ class InstrDynAlias : public llvm::ModulePass {
     void setupSpecSFSids(llvm::Module &);
     void addExternalFunctions(llvm::Module &);
     void addInitializationCalls(llvm::Module &);
-    llvm::Instruction *addMallocCall(llvm::Module &m, ValueMap::Id obj_id,
+    llvm::Instruction *addMallocCall(llvm::Module &m, ValueMap::Id id,
         llvm::Value *val, llvm::Value *size_val,
         llvm::Instruction *insert_before);
 
@@ -91,22 +103,25 @@ class InstrDynAlias : public llvm::ModulePass {
     const ExtLibInfo *extInfo_;
 };
 
-void InstrDynAlias::getAnalysisUsage(llvm::AnalysisUsage &au) const {
+void InstrDynPtsto::getAnalysisUsage(llvm::AnalysisUsage &au) const {
   au.addRequired<UnusedFunctions>();
-  au.addRequired<PtsNumberPass>();
+  au.addRequired<ConstraintPass>();
   // au.addRequired<SpecAnders>();
   au.setPreservesAll();
 }
 
-void InstrDynAlias::setupSpecSFSids(llvm::Module &) {
+void InstrDynPtsto::setupSpecSFSids(llvm::Module &) {
   // Get the ids from the constraint pass
-  const auto &num_pass = getAnalysis<PtsNumberPass>();
-  map_ = num_pass.vals();
-
-  extInfo_ = &num_pass.extInfo();
+  const auto &cons_pass = getAnalysis<ConstraintPass>();
+  /*
+  ConstraintGraph cg(cons_pass.getConstraintGraph());
+  CFG cfg(cons_pass.getControlFlowGraph());
+  */
+  map_ = cons_pass.getCG().vals();
+  extInfo_ = &cons_pass.getCG().extInfo();
 }
 
-bool InstrDynAlias::runOnModule(llvm::Module &m) {
+bool InstrDynPtsto::runOnModule(llvm::Module &m) {
   auto i32_type = llvm::IntegerType::get(m.getContext(), 32);
   auto i64_type = llvm::IntegerType::get(m.getContext(), 64);
   auto i8_ptr_type = llvm::PointerType::get(
@@ -119,14 +134,16 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
   //   Return calls
   //   free calls (add to Andersens.h?)
 
-  // Setup Value ids using the ConstraintPass identifiers...
+  // Setup ValueMap ids using the SpecSFS identifiers...
   setupSpecSFSids(m);
   ValueMap &map = map_;
+
+  ModInfo mod_info(m);
 
   // Notify module of external functions
   addExternalFunctions(m);
 
-  // int32_t gep_id = 0;
+  int32_t gep_id = 0;
 
   // Iterate each instruction, keeping lists
   for (auto &fcn : m) {
@@ -144,6 +161,9 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
     // Means I also need to associate contexts...
     //    getcontext swapcontext setjmp, sigsetjmp
 
+    // Can add BBs so must be outside of fcn loop
+    std::vector<llvm::CallInst *> ext_list;
+
     for (auto &bb : fcn) {
       // Create list to hold all malloc/free Value*s that needs instrumenting
       // within this function
@@ -152,11 +172,6 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
       std::vector<llvm::Instruction *> jmp_list;
       std::vector<llvm::CallInst *> call_list;
       std::vector<llvm::GetElementPtrInst *> gep_list;
-
-      std::vector<llvm::CallInst *> ext_list;
-
-      std::vector<llvm::Instruction *> load_list;
-      std::vector<llvm::Instruction *> store_list;
 
       // Also create list for all pointer values
       std::vector<llvm::Instruction *> pointer_list;
@@ -203,10 +218,6 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
         // Add stack deallocation
         } else if (llvm::isa<llvm::ReturnInst>(&inst)) {
           ret_list.push_back(&inst);
-        } else if (llvm::isa<llvm::LoadInst>(&inst)) {
-          load_list.push_back(&inst);
-        } else if (llvm::isa<llvm::StoreInst>(&inst)) {
-          store_list.push_back(&inst);
         }
 
         // Grab ptsto from return
@@ -240,9 +251,8 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
       // First, deal w/ the phi nodes (meh)
       // Find the first non-phi of the bb:
       // Get the external function
-      // auto visit_fcn = m.getFunction(VisitInstName);
+      auto visit_fcn = m.getFunction(VisitInstName);
 
-      /*
       auto inst_it = std::begin(bb);
       llvm::Instruction *inst = &(*inst_it);
 
@@ -250,7 +260,43 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
         ++inst_it;
         inst = &(*inst_it);
       }
-      */
+
+      {
+        // we now have first inst which isn't a phi
+        // We add all of our phi inst calls here:
+        for (auto &phi_inst : phi_list) {
+          auto val_id = map.getDef(phi_inst);
+          auto i8_ptr_val = new llvm::BitCastInst(phi_inst, i8_ptr_type);
+          i8_ptr_val->insertBefore(inst);
+
+          std::vector<llvm::Value *> args;
+          args.push_back(llvm::ConstantInt::get(i32_type, val_id.val()));
+          args.push_back(i8_ptr_val);
+          auto visit_insn = llvm::CallInst::Create(visit_fcn, args);
+
+          visit_insn->insertAfter(i8_ptr_val);
+        }
+      }
+
+      // for Pointer returning instructions
+      for (auto val : pointer_list) {
+        // The return value is the val
+        auto val_id = map.getDef(val);
+
+        // Make the call
+        auto i8_ptr_val = val;
+        if (val->getType() != i8_ptr_type) {
+          i8_ptr_val = new llvm::BitCastInst(val, i8_ptr_type);
+          i8_ptr_val->insertAfter(val);
+        }
+
+        std::vector<llvm::Value *> args;
+        args.push_back(llvm::ConstantInt::get(i32_type, val_id.val()));
+        args.push_back(i8_ptr_val);
+        auto visit_insn = llvm::CallInst::Create(visit_fcn, args);
+
+        visit_insn->insertAfter(i8_ptr_val);
+      }
 
       // for allocas
       // First get the external function
@@ -258,12 +304,8 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
       // Then, call for each alloc
       for (auto val : alloca_list) {
         auto ai = cast<llvm::AllocaInst>(val);
-        // The id is the objid from the omap
+        // The id is the objid from the map
         auto obj_id = map.getDef(val);
-        /*
-        llvm::dbgs() << "val: " << ValPrinter(val) << " returns def: " << obj_id
-          << "\n";
-        */
 
         // Insert for static alloca's in the functions entry BB before the first
         //    non-alloca inst
@@ -346,145 +388,45 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
             args, "", val);
       }
 
-      auto free_fcn = m.getFunction(FreeInstName);
-      auto malloc_fcn = m.getFunction(MallocInstName);
-      for (auto ci : ext_list) {
-        // Get the callsite from the inst
+      // We need to add objid updates to call instructions with constant
+      // expression arguments -- they may define new nodes which could be
+      // queries
+      // Cannonical example:
+      //    %call = call %(constexpr gep GLOBAL_FCN_TABLE 0 8) (args)
+      // Call instructions
+      for (auto ci : call_list) {
         llvm::CallSite cs(ci);
+        if (auto c = dyn_cast<llvm::Constant>(cs.getCalledValue())) {
+          auto cons_pr = map.getDef(c);
+          // Add call if needed:
+          if (false) {
+            auto val = c;
+            auto val_id = cons_pr;
 
-        // Check the extinfo for each ci in the extlist
-        auto &ext_info = extInfo_->getInfo(cs);
+            // Make the call
+            auto i8_ptr_val = val;
+            if (val->getType() != i8_ptr_type) {
+              i8_ptr_val = llvm::ConstantExpr::getBitCast(val, i8_ptr_type);
+            }
 
+            std::vector<llvm::Value *> args;
+            args.push_back(llvm::ConstantInt::get(i32_type, val_id.val()));
+            args.push_back(i8_ptr_val);
 
-        llvm::Instruction *ia = ci;
-        // Check for free info first
-        auto free_info = ext_info.getFreeData(m, cs, map, &ia);
-
-        // Do any freeing
-        for (auto free_value : free_info) {
-          auto i8_ptr_val = free_value;
-          // Call the instrumentation, before calling free
-          if (i8_ptr_val->getType() != i8_ptr_type) {
-            i8_ptr_val = new llvm::BitCastInst(i8_ptr_val, i8_ptr_type, "", ci);
+            // Create the call inst, we do before CI as the constexpr exists
+            //   here
+            llvm::CallInst::Create(visit_fcn, args, "", ci);
           }
-
-          std::vector<llvm::Value *> args = { i8_ptr_val };
-          llvm::CallInst::Create(free_fcn,
-              args, "", ci);
-        }
-
-        // Check for alloc info
-        auto alloc_info = ext_info.getAllocData(m, cs, map, &ia);
-
-        for (auto &ai : alloc_info) {
-          // Figure out if this is a static or non-static allocation
-          auto obj_id = std::get<2>(ai);
-
-          // if its non-static, use the object allocated at the ci
-          if (obj_id == ValueMap::Id::invalid()) {
-            // Make sure we have an i8*
-            obj_id = map.getDef(ci);
-            /*
-            llvm::dbgs() << "val: " << ValPrinter(ci) << " returns def: "
-              << obj_id << "\n";
-            */
-          }
-
-          // Make sure we're passing an i8* to free
-          llvm::Value *i8_ptr_val = std::get<0>(ai);
-          if (i8_ptr_val->getType() != i8_ptr_type) {
-            auto new_i8_ptr_val =
-              new llvm::BitCastInst(i8_ptr_val, i8_ptr_type);
-            new_i8_ptr_val->insertAfter(ia);
-            ia = new_i8_ptr_val;
-            i8_ptr_val = new_i8_ptr_val;
-          }
-
-          std::vector<llvm::Value *> args = {
-            llvm::ConstantInt::get(i32_type, obj_id.val()),
-            std::get<1>(ai),
-            i8_ptr_val };
-          auto malloc_inst_call = llvm::CallInst::Create(
-              malloc_fcn, args);
-          malloc_inst_call->insertAfter(ia);
-          ia = malloc_inst_call;
         }
       }
 
-      // Loads and stores...
-      auto load_fcn = m.getFunction(LoadInstName);
-      for (auto pinst : load_list) {
-        auto li = cast<llvm::LoadInst>(pinst);
-
-        // Call our load tracker on the load result (the value itself)
-        // Also include val_id
-        auto ptr = li->getOperand(0);
-        auto val_id = map.getDef(li);
-        /*
-        llvm::dbgs() << "val: " << ValPrinter(li) << " returns def: " << val_id
-          << "\n";
-        */
-
-        std::vector<llvm::Value *> args;
-
-        auto size = LLVMHelper::calcTypeOffset(m,
-            cast<llvm::PointerType>(ptr->getType())->getContainedType(0),
-            ptr);
-
-        if (ptr->getType() != i8_ptr_type) {
-          ptr = new llvm::BitCastInst(ptr, i8_ptr_type, "", li);
-        }
-
-
-        args.push_back(llvm::ConstantInt::get(i32_type, val_id.val()));
-        args.push_back(ptr);
-        args.push_back(size);
-
-        // Call our do_load function
-        llvm::CallInst::Create(load_fcn,
-            args, "", li);
-      }
-
-      auto store_fcn = m.getFunction(StoreInstName);
-      for (auto pinst : store_list) {
-        auto si = cast<llvm::StoreInst>(pinst);
-
-        // Call our load tracker on the load result (the value itself)
-        // Also include val_id
-        auto ptr = si->getOperand(1);
-        auto val_id = map.getDef(si);
-        /*
-        llvm::dbgs() << "val: " << ValPrinter(si) << " returns def: " << val_id
-          << "\n";
-        */
-        auto size = LLVMHelper::calcTypeOffset(m,
-            cast<llvm::PointerType>(ptr->getType())->getContainedType(0),
-            ptr);
-
-        std::vector<llvm::Value *> args;
-
-        if (ptr->getType() != i8_ptr_type) {
-          ptr = new llvm::BitCastInst(ptr, i8_ptr_type, "", si);
-        }
-
-        args.push_back(llvm::ConstantInt::get(i32_type, val_id.val()));
-        args.push_back(ptr);
-        args.push_back(size);
-
-        // Call our do_load function
-        llvm::CallInst::Create(store_fcn,
-            args, "", si);
-      }
-
-
-      /*
       // GEPs!
       if (!dyn_ptsto_no_gep) {
         auto gep_fcn = m.getFunction(GEPInstName);
         for (auto &pgep : gep_list) {
           auto &gep = *pgep;
 
-          auto offs = LLVMHelper::getGEPOffs(map, gep);
+          auto offs = LLVMHelper::getGEPOffs(mod_info, gep);
           // If the offset > 0 AND this ISN'T an array access!
           if (offs > 0 && !LLVMHelper::gepIsArrayAccess(gep)) {
             // Okay, add the gep instruction call....
@@ -507,7 +449,8 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
             indicies.pop_back();
             indicies.push_back(llvm::ConstantInt::get(i32_type, 0));
             base_ptr =
-              llvm::GetElementPtrInst::Create(base_ptr, indicies, "", pgep);
+              llvm::GetElementPtrInst::Create(base_ptr->getType(), base_ptr,
+                  indicies, "", pgep);
 
             if (base_ptr->getType() != i8_ptr_type) {
               base_ptr = new llvm::BitCastInst(base_ptr, i8_ptr_type);
@@ -538,7 +481,66 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
           }
         }
       }
-      */
+    }
+
+    auto free_fcn = m.getFunction(FreeInstName);
+    auto malloc_fcn = m.getFunction(MallocInstName);
+    for (auto ci : ext_list) {
+      // Get the callsite from the inst
+      llvm::CallSite cs(ci);
+
+      // Check the extinfo for each ci in the extlist
+      auto &ext_info = extInfo_->getInfo(cs);
+
+      llvm::Instruction *ia = ci;
+      // Check for free info first
+      auto free_info = ext_info.getFreeData(m, cs, map, &ia);
+
+      // Do any freeing
+      for (auto free_value : free_info) {
+        auto i8_ptr_val = free_value;
+        // Call the instrumentation, before calling free
+        if (i8_ptr_val->getType() != i8_ptr_type) {
+          i8_ptr_val = new llvm::BitCastInst(i8_ptr_val, i8_ptr_type, "", ci);
+        }
+
+        std::vector<llvm::Value *> args = { i8_ptr_val };
+        llvm::CallInst::Create(free_fcn,
+            args, "", ci);
+      }
+
+      // Check for alloc info
+      auto alloc_info = ext_info.getAllocData(m, cs, map, &ia);
+
+      for (auto &ai : alloc_info) {
+        // Figure out if this is a static or non-static allocation
+        auto obj_id = std::get<2>(ai);
+
+        // if its non-static, use the object allocated at the ci
+        if (obj_id == ValueMap::Id::invalid()) {
+          // Make sure we have an i8*
+          obj_id = map.getDef(ci);
+        }
+
+        // Make sure we're passing an i8* to free
+        llvm::Value *i8_ptr_val = std::get<0>(ai);
+        if (i8_ptr_val->getType() != i8_ptr_type) {
+          auto new_i8_ptr_val =
+            new llvm::BitCastInst(i8_ptr_val, i8_ptr_type);
+          new_i8_ptr_val->insertAfter(ia);
+          ia = new_i8_ptr_val;
+          i8_ptr_val = new_i8_ptr_val;
+        }
+
+        std::vector<llvm::Value *> args = {
+          llvm::ConstantInt::get(i32_type, obj_id.val()),
+          std::get<1>(ai),
+          i8_ptr_val };
+        auto malloc_inst_call = llvm::CallInst::Create(
+            malloc_fcn, args);
+        malloc_inst_call->insertAfter(ia);
+        ia = malloc_inst_call;
+      }
     }
 
 
@@ -567,14 +569,13 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
     // Also, add visits for the args
     // NOTE: Main is handled specially
     if (fcn.getName() != "main") {
-      // auto visit_fcn = m.getFunction(VisitInstName);
-      /*
+      auto visit_fcn = m.getFunction(VisitInstName);
       std::for_each(fcn.arg_begin(), fcn.arg_end(),
-          [&i8_ptr_type, &i32_type, &omap, &fcn]
+          [&i8_ptr_type, &i32_type, &map, &fcn, &visit_fcn]
           (llvm::Argument &arg) {
         if (llvm::isa<llvm::PointerType>(arg.getType())) {
           // The return value is the val
-          auto val_id = omap.getValue(&arg);
+          auto val_id = map.getDef(&arg);
           auto &ins_pos = *llvm::inst_begin(fcn);
 
           // Make the call
@@ -589,7 +590,6 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
           visit_insn->insertAfter(i8_ptr_val);
         }
       });
-      */
     }
   }
 
@@ -607,10 +607,6 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
       }
       // Get the obj from the function value
       auto obj_id = map.getDef(&fcn);
-      /*
-      llvm::dbgs() << "val: " << ValPrinter(&fcn) << " returns def: " << obj_id
-        << "\n";
-      */
 
       // Get an i8_ptr from the function
       auto i8_ptr_val = new llvm::BitCastInst(&fcn, i8_ptr_type, "",
@@ -644,10 +640,6 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
         (llvm::Value &glbl) {
       // Get the obj from the return value
       auto obj_id = map.getDef(&glbl);
-      /*
-      llvm::dbgs() << "val: " << ValPrinter(&glbl) << " returns def: " << obj_id
-        << "\n";
-      */
 
       // Get the arg_pos for the size from the function
       // llvm::dbgs() << "glbl type is: " << *glbl.getType() << "\n";
@@ -679,7 +671,7 @@ bool InstrDynAlias::runOnModule(llvm::Module &m) {
 }
 
 // Adding calls {{{
-void InstrDynAlias::addExternalFunctions(llvm::Module &m) {
+void InstrDynPtsto::addExternalFunctions(llvm::Module &m) {
   auto void_type = llvm::Type::getVoidTy(m.getContext());
   auto i8_ptr_type = llvm::PointerType::get(
       llvm::IntegerType::get(m.getContext(), 8), 0);
@@ -803,7 +795,6 @@ void InstrDynAlias::addExternalFunctions(llvm::Module &m) {
   }
 
   // GEPInst(int32_t field_offs, i8 *ptr, int32_t size)
-  /*
   {
     // Create the args
     std::vector<llvm::Type *> gep_fcn_type_args;
@@ -822,42 +813,22 @@ void InstrDynAlias::addExternalFunctions(llvm::Module &m) {
         llvm::GlobalValue::ExternalLinkage,
         GEPInstName, &m);
   }
-  */
 
-  // StoreInst(i32 val_id, i8 *ptr, i32 size)
+  // VisitInst(i32 val_id, i8 *ptr)
   {
     // Create the args
-    std::vector<llvm::Type *> store_fcn_type_args;
-    store_fcn_type_args.push_back(i32_type);
-    store_fcn_type_args.push_back(i8_ptr_type);
-    store_fcn_type_args.push_back(i64_type);
+    std::vector<llvm::Type *> visit_fcn_type_args;
+    visit_fcn_type_args.push_back(i32_type);
+    visit_fcn_type_args.push_back(i8_ptr_type);
     // Create the function type
-    auto store_fcn_type = llvm::FunctionType::get(
+    auto visit_fcn_type = llvm::FunctionType::get(
         void_type,
-        store_fcn_type_args,
+        visit_fcn_type_args,
         false);
     // Create the function
-    llvm::Function::Create(store_fcn_type,
+    llvm::Function::Create(visit_fcn_type,
         llvm::GlobalValue::ExternalLinkage,
-        StoreInstName, &m);
-  }
-
-  // LoadInst(i32 val_id, i8 *ptr, i32 size)
-  {
-    // Create the args
-    std::vector<llvm::Type *> load_fcn_type_args;
-    load_fcn_type_args.push_back(i32_type);
-    load_fcn_type_args.push_back(i8_ptr_type);
-    load_fcn_type_args.push_back(i64_type);
-    // Create the function type
-    auto load_fcn_type = llvm::FunctionType::get(
-        void_type,
-        load_fcn_type_args,
-        false);
-    // Create the function
-    llvm::Function::Create(load_fcn_type,
-        llvm::GlobalValue::ExternalLinkage,
-        LoadInstName, &m);
+        VisitInstName, &m);
   }
 
   // InitMainArgs2(i32 argc, char **argv)
@@ -905,7 +876,7 @@ void InstrDynAlias::addExternalFunctions(llvm::Module &m) {
   }
 }
 
-void InstrDynAlias::addInitializationCalls(llvm::Module &m) {
+void InstrDynPtsto::addInitializationCalls(llvm::Module &m) {
   // Var types
   auto void_type = llvm::Type::getVoidTy(m.getContext());
   auto i64_type = llvm::IntegerType::get(m.getContext(), 64);
@@ -935,8 +906,8 @@ void InstrDynAlias::addInitializationCalls(llvm::Module &m) {
   // While we're at it, we're going to add the args to main to our set of
   //   objs...
   {
-    auto i8_type = llvm::IntegerType::get(m.getContext(), 8);
-    auto i8_ptr_type = llvm::PointerType::get(i8_type, 0);
+    auto i8_ptr_type = llvm::PointerType::get(
+        llvm::IntegerType::get(m.getContext(), 8), 0);
     auto ce_null = llvm::ConstantPointerNull::get(i8_ptr_type);
 
     // Do one for IntValue
@@ -963,7 +934,7 @@ void InstrDynAlias::addInitializationCalls(llvm::Module &m) {
     });
 
     // Note all main_args size comps are +1 due to the obj_id arg
-    if (main_args.size() != 4) {
+    if (main_args.size() != 2) {
       llvm::Function *main_init_fcn;
 
       if (main_args.size() == 5) {
@@ -1006,7 +977,7 @@ void InstrDynAlias::addInitializationCalls(llvm::Module &m) {
   llvm::CallInst::Create(at_exit, atexit_call_args, "", first_inst);
 }
 
-llvm::Instruction *InstrDynAlias::addMallocCall(llvm::Module &m,
+llvm::Instruction *InstrDynPtsto::addMallocCall(llvm::Module &m,
     ValueMap::Id obj_id, llvm::Value *val, llvm::Value *size_val,
     llvm::Instruction *insert_before) {
   // Make the call
@@ -1030,38 +1001,42 @@ llvm::Instruction *InstrDynAlias::addMallocCall(llvm::Module &m,
 }
 //}}}
 
-char InstrDynAlias::ID = 0;
+char InstrDynPtsto::ID = 0;
 
-static llvm::RegisterPass<InstrDynAlias> X("insert-alias-profiling",
+static llvm::RegisterPass<InstrDynPtsto> X("insert-ptsto-profiling",
     "Instruments pointsto sets, for use with SpecSFS",
     false, false);
 //}}}
 
 // The dynamic ptsto pass loader {{{
-void DynAliasLoader::getAnalysisUsage(llvm::AnalysisUsage &au) const {
-  au.addRequired<PtsNumberPass>();
-  au.addRequired<ModuleAAResults>();
+void DynPtstoLoader::getAnalysisUsage(llvm::AnalysisUsage &au) const {
+  au.addRequired<ConstraintPass>();
+  au.addRequired<UnusedFunctions>();
   au.setPreservesAll();
 }
 
-bool DynAliasLoader::runOnModule(llvm::Module &) {
-  // Setup omap:
-  const auto &cp = getAnalysis<PtsNumberPass>();
-  map_ = cp.vals();
+bool DynPtstoLoader::runOnModule(llvm::Module &) {
+  // Setup map:
+  const auto &cp = getAnalysis<ConstraintPass>();
+  map_ = cp.getCG().vals();
 
   // Now optimize so its related to spec's
-
-  std::ifstream logfile(DynAliasFilename);
-  llvm::dbgs() << "Loading DynAliasFile: " << DynAliasFilename << "\n";
+  std::ifstream logfile(DynPtstoFilename);
+  llvm::dbgs() << "Loading DynPtstoFile: " << DynPtstoFilename << "\n";
   if (!logfile.is_open()) {
-    llvm::dbgs() << "DynAliasLoader: no logfile loaded!\n";
+    llvm::dbgs() << "DynPtstoLoader: no logfile loaded!\n";
     hasInfo_ = false;
   } else {
-    llvm::dbgs() << "DynAliasLoader: Successfully Loaded\n";
+    llvm::dbgs() << "DynPtstoLoader: Successfully Loaded\n";
     hasInfo_ = true;
 
+    // Setup ValueMap ids using the SpecSFS identifiers...
+    // setupSpecSFSids(m);
+
+
     for (std::string line; std::getline(logfile, line, ':'); ) {
-      auto call_id = ValueMap::Id(stoi(line));
+      int line_id = stoi(line);
+      auto call_id = ValueMap::Id(line_id);
 
       auto &obj_set = valToObjs_[call_id];
 
@@ -1071,26 +1046,37 @@ bool DynAliasLoader::runOnModule(llvm::Module &) {
 
       int32_t obj_int_val;
       converter >> obj_int_val;
+      bool do_del = false;
       while (!converter.fail()) {
-        auto obj_id = ValueMap::Id(obj_int_val);
+        if (obj_int_val == -1) {
+          llvm::dbgs() << "WARNING: " << line_id <<
+            " has val -1, ignoring!!!\n";
+        } else {
+          auto obj_id = ValueMap::Id(obj_int_val);
 
-        // If we have a universal value, we don't maintain dyn ptsto constraints
-        //   for this variable
-        if (obj_id == ValueMap::UniversalValue) {
-          obj_id = ValueMap::Id::invalid();
+          // Don't add a ptsto for null value
+          if (obj_id != ValueMap::NullValue) {
+            obj_set.set(obj_id);
+          }
+
+          // If we have a universal value, we don't maintain dyn
+          //   ptsto constraints for this variable
+          if (obj_id == ValueMap::UniversalValue) {
+            do_del = true;
+            break;
+          }
         }
-
-        // Don't add a ptsto for null value
-        if (obj_id != ValueMap::NullValue) {
-          obj_set.insert(obj_id);
-        }
-
-
         converter >> obj_int_val;
+      }
+
+      // If we have a universal value, we don't maintain dyn ptsto constraints
+      //   for this variable
+      if (do_del) {
+        valToObjs_.erase(call_id);
       }
     }
 
-    /*
+    llvm::dbgs() << "printing!\n";
     if (print_dyn_ptsto) {
       int64_t total_variables = 0;
       int64_t total_ptstos = 0;
@@ -1131,134 +1117,62 @@ bool DynAliasLoader::runOnModule(llvm::Module &) {
         llvm::dbgs() << "  [" << i << "]:  " << num_objects[i] << "\n";
       }
     }
-    */
   }
 
   return false;
 }
 
-char DynAliasLoader::ID = 0;
-char DynAliasTester::ID = 0;
+char DynPtstoLoader::ID = 0;
+char DynPtstoAA::ID = 0;
 
-void DynAliasTester::getAnalysisUsage(llvm::AnalysisUsage &au) const {
-  au.addRequired<ModuleAAResults>();
-  au.addRequired<DynAliasLoader>();
-  au.addRequired<UnusedFunctions>();
-
+void DynPtstoAA::getAnalysisUsage(llvm::AnalysisUsage &au) const {
+  au.addRequired<DynPtstoLoader>();
   au.setPreservesAll();
 }
 
-bool DynAliasTester::runOnModule(llvm::Module &) {
-  // Setup omap:
-  dynAA_ = &getAnalysis<DynAliasLoader>();
+bool DynPtstoAA::runOnModule(llvm::Module &) {
+  // InitializeAliasAnalysis(this);
 
-  auto &aa = getAnalysis<ModuleAAResults>();
-
-  auto &used = getAnalysis<UnusedFunctions>();
-
-  // Now test the load/store aliases for the dynamic alias set
-
-  size_t num_good_load = 0;
-  size_t num_load = 0;
-  size_t num_good_store = 0;
-  size_t num_store = 0;
-
-  for (auto pr : *dynAA_) {
-    auto load_id = pr.first;
-    auto &store_set = pr.second;
-    num_load++;
-
-    if (load_id == ValueMap::Id::invalid()) {
-      continue;
-    }
-
-    auto load_val = dynAA_->valueAtID(load_id);
-    auto li = dyn_cast_or_null<llvm::LoadInst>(load_val);
-    if (li == nullptr) {
-      llvm::dbgs() << "WARNING: load inst without load value?: " << load_id <<
-        " " << FullValPrint(load_id, dynAA_->map()) << "\n";
-      continue;
-    }
-
-    if (!used.isUsed(li->getParent())) {
-      llvm::dbgs() << "WARNING: Unused load inst? " << ValPrinter(li) << "\n";
-      continue;
-    }
-
-    num_good_load++;
-    auto load_src = li->getOperand(0);
-
-    for (auto store_id : store_set) {
-      if (store_id == ValueMap::Id::invalid() ||
-          store_id == ValueMap::Id(0)) {
-        continue;
-      }
-
-      num_store++;
-      auto store_val = dynAA_->valueAtID(store_id);
-
-      // The load_val should be a load instruction
-      // The store val should be a store instruction
-      auto si = dyn_cast_or_null<llvm::StoreInst>(store_val);
-      if (si == nullptr) {
-        llvm::dbgs() << "WARNING: store inst without store value?: " <<
-          store_id << FullValPrint(store_id, dynAA_->map()) << "\n";
-        continue;
-      }
-
-      if (!used.isUsed(si->getParent())) {
-        llvm::dbgs() << "WARNING: Unused store inst? " <<
-          ValPrinter(si) << "\n";
-        continue;
-      }
-      num_good_store++;
-      auto store_dest = si->getOperand(1);
-
-
-      // If the store value is an allocation site, we could be dealing with an
-      // offset within the site.  In that instance, we need to consider all
-      // subfields allocated when asking about an alias...
-      // To do so,
-      //   First, get a list of all store objects associated with this alloc,
-      //   Then,
-      /*
-      static int32_t i = 0;
-      if (i == 2298) {
-        llvm::dbgs() << "load is: " << ValPrinter(li) << "\n";
-        llvm::dbgs() << "store is: " << ValPrinter(si) << "\n";
-      }
-      llvm::dbgs() << "alias check : " << i++ << "\n";
-      */
-      if (aa.alias(llvm::MemoryLocation(load_src),
-               llvm::MemoryLocation(store_dest)) ==
-          llvm::AliasResult::NoAlias) {
-        llvm::dbgs() << "DynAlias found load-store alias not in AA\n";
-
-        llvm::dbgs() << "  Store: " << store_id << ": " <<
-          FullValPrint(store_id, dynAA_->map()) << "\n";
-
-        llvm::dbgs() << "  Load: " << load_id << ": " <<
-          FullValPrint(load_id, dynAA_->map()) << "\n";
-      }
-    }
-  }
-
-  llvm::dbgs() << "num_load: " << num_load << "\n";
-  llvm::dbgs() << "num_good_load: " << num_good_load << "\n";
-
-  llvm::dbgs() << "num_store: " << num_store << "\n";
-  llvm::dbgs() << "num_good_store: " << num_good_store << "\n";
-
+  // Setup map:
+  dynPts_ = &getAnalysis<DynPtstoLoader>();
   return false;
 }
 
+llvm::AliasResult DynPtstoAA::alias(
+    const llvm::MemoryLocation &L1,
+    const llvm::MemoryLocation &L2) {
+  // Get the object of the location...
+  // Now, go from here...
+  // Get the objects:
+
+  auto &pts1 = dynPts_->getPtsto(L1.Ptr);
+  auto &pts2 = dynPts_->getPtsto(L2.Ptr);
+
+  if (pts1.empty() || pts2.empty()) {
+    return llvm::AliasResult::NoAlias;
+  }
+
+  if (!pts1.intersectsIgnoring(pts2, ValueMap::NullValue)) {
+    return llvm::AliasResult::NoAlias;
+  }
+
+  /*
+  llvm::dbgs() << "alias? pts:\n";
+  llvm::dbgs() << "  " << pts1 << "\n";
+  llvm::dbgs() << "  " << pts2 << "\n";
+  */
+
+  return llvm::AliasResult::MayAlias;
+}
+
 namespace llvm {
-static RegisterPass<DynAliasLoader> DynAliasLoadReg("real-dyn-loader",
+static RegisterPass<DynPtstoLoader> DynPtsLoadReg("dyn-loader",
     "loads dynamic ptsto set info, for use with SpecSFS",
     false, false);
-static RegisterPass<DynAliasTester> DynAliasTesterReg("dyn-alias-tester",
-    "Tests any previously run AAs for load/store alias sets",
-    false, false);
+static RegisterPass<DynPtstoAA> DynPtsAAReg("dyn-aa",
+    " dynamic ptsto aa set info, for use with SpecSFS",
+    false, true);
+// RegisterAnalysisGroup<AliasAnalysis> DynPtsAAAnalysisReg(DynPtsAAReg);
 }
 // }}}
 
