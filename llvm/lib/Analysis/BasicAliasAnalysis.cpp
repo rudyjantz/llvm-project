@@ -61,6 +61,9 @@
 #include <cstdlib>
 #include <utility>
 
+//#include "llvm/Oha/SpecAndersCS.h"
+#include "llvm/Oha/SpecAnders.h"
+
 #define DEBUG_TYPE "basicaa"
 
 using namespace llvm;
@@ -1954,6 +1957,7 @@ bool BasicAAWrapperPass::runOnFunction(Function &F) {
   auto &DTWP = getAnalysis<DominatorTreeWrapperPass>();
   auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
   auto *PVWP = getAnalysisIfAvailable<PhiValuesWrapperPass>();
+  auto *SAWP = getAnalysisIfAvailable<SpecAndersWrapperPass>();
 
   Result.reset(new BasicAAResult(F.getParent()->getDataLayout(), F, TLIWP.getTLI(),
                                  ACT.getAssumptionCache(F), &DTWP.getDomTree(),
