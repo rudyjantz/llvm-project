@@ -567,6 +567,7 @@ function(llvm_add_library name)
       ${ARG_LINK_LIBS}
       ${lib_deps}
       ${llvm_libs}
+      bdd
       )
 
   if(LLVM_COMMON_DEPENDS)
