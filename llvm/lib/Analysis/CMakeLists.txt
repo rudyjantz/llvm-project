@@ -104,15 +104,12 @@ add_llvm_library(LLVMAnalysis
   CsFcnCFG.cpp
   CsSolve.cpp
   Debug.cpp
-  DynPtstoOpt.cpp
   ExitInst.cpp
   ExtInfo.cpp
   FcnCFG.cpp
-  IdentifyObjects.cpp
   InsertSpecAssumptions.cpp
   InstPrinter.cpp
   ModuleAAResults.cpp
-  PrintID.cpp
   ProfDisabler.cpp
   PtsNumberPass.cpp
   Solve.cpp
@@ -126,6 +123,20 @@ add_llvm_library(LLVMAnalysis
   TestAA.cpp
   UnusedFunctions.cpp
   ValueMap.cpp
+  CallContextPass.cpp
+  DynAlias.cpp
+  DynPtsto.cpp
+  EdgeCountPass.cpp
+  IndirFcnTarget.cpp
+  DynAliasLib.cpp
+  DynCallStackLib.cpp
+  DynEdgeCountLib.cpp
+  DynPtstoCheckLib.cpp
+  DynPtstoCheckLibNoOpt.cpp
+  DynPtstoLib.cpp
+  IndirFcnTargetLib.cpp
+  SignalHandler.cpp
+
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Analysis
