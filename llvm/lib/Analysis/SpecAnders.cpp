@@ -186,24 +186,20 @@ llvm::AliasResult SpecAndersAAResult::alias(const llvm::MemoryLocation &L1,
 
 // LEGACY WRAPPER
 
-namespace llvm {
-  void initializeSpecAndersWrapperPassPass(PassRegistry &);
-  static RegisterPass<SpecAndersWrapperPass>
-      SpecAndersRP("SpecAnders", "Speculative Andersens Analysis", false, true);
-  // RegisterAnalysisGroup<AliasAnalysis> SpecAndersRAG(SpecAndersRP);
-}  // namespace llvm
+//namespace llvm {
+//  //void initializeSpecAndersWrapperPassPass(PassRegistry &);
+//  static RegisterPass<SpecAndersWrapperPass>
+//      SpecAndersRP("SpecAnders", "Speculative Andersens Analysis", false, true);
+//  // RegisterAnalysisGroup<AliasAnalysis> SpecAndersRAG(SpecAndersRP);
+//}  // namespace llvm
 
 char SpecAndersWrapperPass::ID = 0;
-SpecAndersWrapperPass::SpecAndersWrapperPass() :
-    llvm::ModulePass(ID) {
-  // initializeSpecAndersWrapperPassPass(
-  //     *llvm::PassRegistry::getPassRegistry());
+SpecAndersWrapperPass::SpecAndersWrapperPass() : llvm::ModulePass(ID) {
+  initializeSpecAndersWrapperPassPass(*llvm::PassRegistry::getPassRegistry());
 }
 
-SpecAndersWrapperPass::SpecAndersWrapperPass(char &id) :
-    llvm::ModulePass(id) {
-  // initializeSpecAndersWrapperPassPass(
-  //     *llvm::PassRegistry::getPassRegistry());
+SpecAndersWrapperPass::SpecAndersWrapperPass(char &id) : llvm::ModulePass(id) {
+  initializeSpecAndersWrapperPassPass(*llvm::PassRegistry::getPassRegistry());
 }
 
 bool SpecAndersWrapperPass::runOnModule(llvm::Module &m) {
@@ -242,11 +238,14 @@ void SpecAndersWrapperPass::getAnalysisUsage(
 
 // Crappy requirement for crappy macros
 using namespace llvm;  // NOLINT
-INITIALIZE_PASS_BEGIN(SpecAndersWrapperPass, "SpecAnders",
-    "Speculative Andersens Analysis", false, false)
-INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
-INITIALIZE_PASS_END(SpecAndersWrapperPass, "SpecAnders",
-    "Speculative Andersens Analysis", false, false)
+//INITIALIZE_PASS_BEGIN(SpecAndersWrapperPass, "SpecAnders",
+//    "Speculative Andersens Analysis", false, false)
+//INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
+//INITIALIZE_PASS_END(SpecAndersWrapperPass, "SpecAnders",
+//    "Speculative Andersens Analysis", false, false)
+INITIALIZE_PASS(SpecAndersWrapperPass, "SpecAnders",
+    "Speculative Andersens Analysis", false, true)
+
 // END LEGACY WRAPPER PASS
 
 
