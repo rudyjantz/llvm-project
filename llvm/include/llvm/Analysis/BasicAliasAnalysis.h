@@ -29,6 +29,8 @@
 #include <memory>
 #include <utility>
 
+#include "llvm/Analysis/CFLAndersAliasAnalysis.h"
+
 namespace llvm {
 
 struct AAMDNodes;
@@ -62,13 +64,16 @@ class BasicAAResult : public AAResultBase<BasicAAResult> {
   DominatorTree *DT;
   LoopInfo *LI;
   PhiValues *PV;
+  CFLAndersAAWrapperPass *CA;
 
 public:
   BasicAAResult(const DataLayout &DL, const Function &F,
                 const TargetLibraryInfo &TLI, AssumptionCache &AC,
                 DominatorTree *DT = nullptr, LoopInfo *LI = nullptr,
-                PhiValues *PV = nullptr)
-      : AAResultBase(), DL(DL), F(F), TLI(TLI), AC(AC), DT(DT), LI(LI), PV(PV)
+                PhiValues *PV = nullptr,
+                CFLAndersAAWrapperPass *CA = nullptr)
+      : AAResultBase(), DL(DL), F(F), TLI(TLI), AC(AC), DT(DT), LI(LI), PV(PV),
+        CA(CA)
         {}
 
   BasicAAResult(const BasicAAResult &Arg)
