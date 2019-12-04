@@ -503,3 +503,18 @@ PtstoSet *SpecAndersAnalysis::ptsCacheGet(const llvm::Value *val) {
   return &rc.first->second;
 }
 
+/*
+SpecAndersAAResult SpecAnders::run(Function &F, FunctionAnalysisManager &AM) {
+//SpecAndersAAResult SpecAnders::run(Module &M, FunctionAnalysisManager &AM) {
+      //return SpecAndersAAResult(AM.getResult<SpecAndersAnalysis>(F));
+      //return SpecAndersAAResult(NULL);
+      // FIXME FIXME FIXME
+      // FIXME FIXME FIXME This code is wrong and just a hack for now to get it
+      // to compile.
+      // FIXME FIXME FIXME
+      return SpecAndersAAResult((SpecAndersAnalysis &) (*(new SpecAndersAnalysis())));
+      //return SpecAndersAAResult(AM.getResult<SpecAndersAnalysis>(M));
+}
+
+llvm::ModulePass *createSpecAndersAAWrapperPass();
+*/

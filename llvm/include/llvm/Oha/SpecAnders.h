@@ -17,6 +17,8 @@
 
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
+//#include "llvm/IR/Module.h"
+//#include "llvm/IR/PassManager.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CommandLine.h"
@@ -29,19 +31,20 @@ using AliasResult = llvm::AliasResult;
 using MemoryLocation = llvm::MemoryLocation;
 
 /*
+class SpecAndersAAResult;
+
 class SpecAnders : public llvm::AnalysisInfoMixin<SpecAnders> {
  public:
   typedef SpecAndersAAResult Result;
 
-  Result run(Module &m, FunctionAnalysisManager &AM);
+  //Result run(llvm::Module &m, llvm::FunctionAnalysisManager &AM);
+  Result run(llvm::Function &f, llvm::FunctionAnalysisManager &AM);
 
  private:
   friend llvm::AnalysisInfoMixin<SpecAnders>;
   static llvm::AnalysisKey key;
 };
 */
-
-class SpecAndersAAResult;
 
 class SpecAndersAnalysis {
  public:
