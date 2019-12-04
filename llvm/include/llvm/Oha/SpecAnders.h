@@ -46,6 +46,8 @@ class SpecAnders : public llvm::AnalysisInfoMixin<SpecAnders> {
 };
 */
 
+class SpecAndersAAResult;
+
 class SpecAndersAnalysis {
  public:
   SpecAndersAnalysis() = default;
