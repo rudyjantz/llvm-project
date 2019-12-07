@@ -55,7 +55,7 @@
 #include <functional>
 #include <iterator>
 
-#include "llvm/Oha/SpecAnders.h"
+#include "llvm/Oha/SpecAndersCS.h"
 
 using namespace llvm;
 
@@ -696,8 +696,7 @@ INITIALIZE_PASS_DEPENDENCY(ObjCARCAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(ScopedNoAliasAAWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TypeBasedAAWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(SpecAndersWrapperPass)
-//INITIALIZE_PASS_DEPENDENCY(SpecAndersCSWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(SpecAndersCSWrapperPass)
 INITIALIZE_PASS_END(AAResultsWrapperPass, "aa",
                     "Function Alias Analysis Results", false, true)
 
@@ -746,10 +745,8 @@ bool AAResultsWrapperPass::runOnFunction(Function &F) {
     AAR->addAAResult(WrapperPass->getResult());
   if (auto *WrapperPass = getAnalysisIfAvailable<CFLSteensAAWrapperPass>())
     AAR->addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = getAnalysisIfAvailable<SpecAndersWrapperPass>())
+  if (auto *WrapperPass = getAnalysisIfAvailable<SpecAndersCSWrapperPass>())
     AAR->addAAResult(WrapperPass->getResult());
-  //if (auto *WrapperPass = getAnalysisIfAvailable<SpecAndersCSWrapperPass>())
-  //  AAR->addAAResult(WrapperPass->getResult());
 
   // If available, run an external AA providing callback over the results as
   // well.
@@ -777,8 +774,7 @@ void AAResultsWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addUsedIfAvailable<SCEVAAWrapperPass>();
   AU.addUsedIfAvailable<CFLAndersAAWrapperPass>();
   AU.addUsedIfAvailable<CFLSteensAAWrapperPass>();
-  AU.addUsedIfAvailable<SpecAndersWrapperPass>();
-  //AU.addUsedIfAvailable<SpecAndersCSWrapperPass>();
+  AU.addUsedIfAvailable<SpecAndersCSWrapperPass>();
 }
 
 AAResults llvm::createLegacyPMAAResults(Pass &P, Function &F,
@@ -804,10 +800,8 @@ AAResults llvm::createLegacyPMAAResults(Pass &P, Function &F,
     AAR.addAAResult(WrapperPass->getResult());
   if (auto *WrapperPass = P.getAnalysisIfAvailable<CFLSteensAAWrapperPass>())
     AAR.addAAResult(WrapperPass->getResult());
-  if (auto *WrapperPass = P.getAnalysisIfAvailable<SpecAndersWrapperPass>())
+  if (auto *WrapperPass = P.getAnalysisIfAvailable<SpecAndersCSWrapperPass>())
     AAR.addAAResult(WrapperPass->getResult());
-  //if (auto *WrapperPass = P.getAnalysisIfAvailable<SpecAndersCSWrapperPass>())
-  //  AAR.addAAResult(WrapperPass->getResult());
 
   return AAR;
 }
@@ -851,6 +845,5 @@ void llvm::getAAResultsAnalysisUsage(AnalysisUsage &AU) {
   AU.addUsedIfAvailable<GlobalsAAWrapperPass>();
   AU.addUsedIfAvailable<CFLAndersAAWrapperPass>();
   AU.addUsedIfAvailable<CFLSteensAAWrapperPass>();
-  AU.addUsedIfAvailable<SpecAndersWrapperPass>();
-  //AU.addUsedIfAvailable<SpecAndersCSWrapperPass>();
+  AU.addUsedIfAvailable<SpecAndersCSWrapperPass>();
 }
