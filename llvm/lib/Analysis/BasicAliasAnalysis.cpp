@@ -62,7 +62,6 @@
 #include <utility>
 
 #include "llvm/Oha/SpecAndersCS.h"
-//#include "llvm/Oha/SpecAnders.h"
 #include "llvm/Analysis/CFLAndersAliasAnalysis.h"
 
 #define DEBUG_TYPE "basicaa"
@@ -1947,6 +1946,7 @@ INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(CFLAndersAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(SpecAndersCSWrapperPass)
 INITIALIZE_PASS_END(BasicAAWrapperPass, "basicaa",
                     "Basic Alias Analysis (stateless AA impl)", false, true)
 
@@ -1962,12 +1962,14 @@ bool BasicAAWrapperPass::runOnFunction(Function &F) {
   auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
   auto *PVWP = getAnalysisIfAvailable<PhiValuesWrapperPass>();
   auto *CFLA = getAnalysisIfAvailable<CFLAndersAAWrapperPass>();
+  auto *SACS = getAnalysisIfAvailable<SpecAndersCSWrapperPass>();
 
   Result.reset(new BasicAAResult(F.getParent()->getDataLayout(), F, TLIWP.getTLI(),
                                  ACT.getAssumptionCache(F), &DTWP.getDomTree(),
                                  LIWP ? &LIWP->getLoopInfo() : nullptr,
                                  PVWP ? &PVWP->getResult() : nullptr,
-                                 CFLA ? CFLA : nullptr));
+                                 CFLA ? CFLA : nullptr,
+                                 SACS ? SACS : nullptr));
 
   return false;
 }
@@ -1979,6 +1981,7 @@ void BasicAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequired<TargetLibraryInfoWrapperPass>();
   AU.addRequired<CFLAndersAAWrapperPass>();
+  AU.addRequired<SpecAndersCSWrapperPass>();
   AU.addUsedIfAvailable<PhiValuesWrapperPass>();
 }
 

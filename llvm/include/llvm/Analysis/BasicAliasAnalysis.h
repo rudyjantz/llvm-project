@@ -30,6 +30,7 @@
 #include <utility>
 
 #include "llvm/Analysis/CFLAndersAliasAnalysis.h"
+#include "llvm/Oha/SpecAndersCS.h"
 
 namespace llvm {
 
@@ -65,15 +66,17 @@ class BasicAAResult : public AAResultBase<BasicAAResult> {
   LoopInfo *LI;
   PhiValues *PV;
   CFLAndersAAWrapperPass *CA;
+  SpecAndersCSWrapperPass *SA;
 
 public:
   BasicAAResult(const DataLayout &DL, const Function &F,
                 const TargetLibraryInfo &TLI, AssumptionCache &AC,
                 DominatorTree *DT = nullptr, LoopInfo *LI = nullptr,
                 PhiValues *PV = nullptr,
-                CFLAndersAAWrapperPass *CA = nullptr)
+                CFLAndersAAWrapperPass *CA = nullptr,
+                SpecAndersCSWrapperPass *SA = nullptr)
       : AAResultBase(), DL(DL), F(F), TLI(TLI), AC(AC), DT(DT), LI(LI), PV(PV),
-        CA(CA)
+        CA(CA), SA(SA)
         {}
 
   BasicAAResult(const BasicAAResult &Arg)
