@@ -243,7 +243,6 @@ void SpecAndersCSWrapperPass::getAnalysisUsage(llvm::AnalysisUsage &usage) const
   usage.setPreservesAll();
 
   // cporter FIXME? do we want AU.addRequired<TargetLibraryInfoWrapperPass>();
-  /*
 
   // For DCE
   usage.addRequired<UnusedFunctions>();
@@ -253,7 +252,6 @@ void SpecAndersCSWrapperPass::getAnalysisUsage(llvm::AnalysisUsage &usage) const
   usage.addRequired<CallContextLoader>();
 
   usage.addRequired<ConstraintPass>();
-  */
 }
 
 
