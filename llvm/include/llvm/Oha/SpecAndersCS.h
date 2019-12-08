@@ -193,7 +193,8 @@ public:
 
 
 //class SpecAndersCSWrapperPass : public llvm::ModulePass {
-class SpecAndersCSWrapperPass : public llvm::FunctionPass {
+//class SpecAndersCSWrapperPass : public llvm::FunctionPass {
+class SpecAndersCSWrapperPass : public llvm::ImmutablePass {
   std::unique_ptr<SpecAndersCSResult> Result;
 
 public:
@@ -205,7 +206,7 @@ public:
   const SpecAndersCSResult &getResult() const { return *Result; }
 
   //bool runOnModule(llvm::Module &M) override;
-  bool runOnFunction(llvm::Function &F) override;
+  //bool runOnFunction(llvm::Function &F) override;
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
 
   //void initializePass();
@@ -214,8 +215,9 @@ public:
 
 };
 
+llvm::ImmutablePass *createSpecAndersCSWrapperPass();
 //llvm::ModulePass *createSpecAndersCSWrapperPass();
-llvm::FunctionPass *createSpecAndersCSWrapperPass();
+//llvm::FunctionPass *createSpecAndersCSWrapperPass();
 
 
 #endif  // INCLUDE_SPECANDERSCS_H_

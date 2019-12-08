@@ -222,8 +222,8 @@ INITIALIZE_PASS(SpecAndersCSWrapperPass, "spec-anders-cs",
                 "Speculative, Context-sensitive Andersens Alias Analysis",
                 false, true)
 
-//ModulePass *createSpecAndersCSWrapperPass() {
-FunctionPass *createSpecAndersCSWrapperPass() {
+ImmutablePass *createSpecAndersCSWrapperPass() {
+//FunctionPass *createSpecAndersCSWrapperPass() {
   return new SpecAndersCSWrapperPass();
 }
 
@@ -257,8 +257,8 @@ void SpecAndersCSWrapperPass::getAnalysisUsage(llvm::AnalysisUsage &usage) const
 }
 
 
-//bool SpecAndersCSWrapperPass::runOnModule(llvm::Module &m) {
-bool SpecAndersCSWrapperPass::runOnFunction(llvm::Function &f) {
+/*bool SpecAndersCSWrapperPass::runOnModule(llvm::Module &m) {
+//bool SpecAndersCSWrapperPass::runOnFunction(llvm::Function &f) {
   // Get all analyses...
   //auto &cp = getAnalysis<ConstraintPass>();
   //auto &uf = getAnalysis<UnusedFunctions>();
@@ -270,11 +270,11 @@ bool SpecAndersCSWrapperPass::runOnFunction(llvm::Function &f) {
   //anders_.run(m, cp, uf, indir_info, call_info, cs_cfg);
   //result_.reset(new SpecAndersCSResult(anders_));
   return false;
-}
+}*/
 
 
-//SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : ModulePass(ID) {
-SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : FunctionPass(ID) {
+SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : ImmutablePass(ID) {
+//SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : FunctionPass(ID) {
   initializeSpecAndersCSWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
@@ -319,7 +319,7 @@ SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : FunctionPass(ID) {
 AnalysisKey SpecAndersCS::Key;
 
 //SpecAndersCSResult SpecAndersCS::run(Module &M, ModuleAnalysisManager &AM) {
-SpecAndersCSResult SpecAndersCS::run(Function &F, FunctionAnalysisManager &FM) {
+SpecAndersCSResult SpecAndersCS::run(Function &F, FunctionAnalysisManager &AM) {
   //return CFLAndersAAResult(AM.getResult<TargetLibraryAnalysis>(F));
   //return ScopedNoAliasAAResult();
   //return SpecAndersCSResult();
