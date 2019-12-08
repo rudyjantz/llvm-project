@@ -107,14 +107,11 @@ add_llvm_library(LLVMAnalysis
   ExitInst.cpp
   ExtInfo.cpp
   FcnCFG.cpp
-  InsertSpecAssumptions.cpp
   InstPrinter.cpp
-  ModuleAAResults.cpp
   ProfDisabler.cpp
   PtsNumberPass.cpp
   Solve.cpp
   SolveHelpers.cpp
-  SpecAnders.cpp
   SpecAndersCS.cpp
   SpecCsCFG.cpp
   StaticSlice.cpp

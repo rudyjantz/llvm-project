@@ -23,38 +23,31 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 
+
+
 // The actual SFS module, most of the work is done via the ObjectMap and Def-Use
 // Graph (DUG), these methods mostly operate on them.
 
-class SpecAndersCS : public llvm::ModulePass,
-                public llvm::AAResultBase<SpecAndersCS> {
+/*
+ *
+ * SpecAndersCSResult
+ *
+ */
+
+class SpecAndersCS;
+
+using AliasResult = llvm::AliasResult;
+using MemoryLocation = llvm::MemoryLocation;
+
+class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
+
+  friend AAResultBase<SpecAndersCSResult>;
+
  public:
-  static char ID;
-  SpecAndersCS();
-  explicit SpecAndersCS(char &id);
 
-  virtual bool runOnModule(llvm::Module &M);
-
-  void getAnalysisUsage(llvm::AnalysisUsage &usage) const;
-
-  /*
-  virtual void *getAdjustedAnalysisPointer(llvm::AnalysisID PI) {
-    if (PI == &AliasAnalysis::ID) {
-      // return (llvm::AliasAnalysis *)this;
-      return static_cast<llvm::AliasAnalysis *>(this);
-    }
-    return this;
-  }
-  */
-
-  llvm::StringRef getPassName() const override {
-    return "SpecAnders";
-  }
-
-  /*
-  AliasAnalysis::AliasResult alias(const llvm::Value *v1, unsigned v1size,
-      const llvm::Value *v2, unsigned v2size) override;
-  */
+  explicit SpecAndersCSResult(SpecAndersCS &anders);
+  SpecAndersCSResult(SpecAndersCSResult &&RHS);
+  ~SpecAndersCSResult();
 
   virtual llvm::AliasResult alias(const llvm::MemoryLocation &L1,
       const llvm::MemoryLocation &L2);
@@ -67,14 +60,9 @@ class SpecAndersCS : public llvm::ModulePass,
   bool pointsToConstantMemory(const llvm::MemoryLocation &Loc,
       bool OrLocal = false);
 
-  /*
-  virtual void deleteValue(llvm::Value *V);
 
-  virtual void copyValue(llvm::Value *From, llvm::Value *To);
-  */
-
-  const AssumptionSet &getSpecAssumptions() const {
-    return specAssumptions_;
+  ValueMap::Id getRep(ValueMap::Id id) {
+    return mainCg_->vals().getRep(id);
   }
 
   const std::set<std::vector<CsCFG::Id>> getInvalidStacks() const {
@@ -89,22 +77,6 @@ class SpecAndersCS : public llvm::ModulePass,
     return mainCg_->vals();
   }
 
-  ValueMap::Id getRep(ValueMap::Id id) {
-    // Convert input objID to rep ObjID:
-    /*
-    auto rep_id = id;
-    auto val = omap_.valueAtID(id);
-    const llvm::Value *old_val = nullptr;
-    while (!ObjectMap::isSpecial(id) && val != old_val) {
-      old_val = val;
-      rep_id = omap_.getValue(val);
-      val = omap_.valueAtID(rep_id);
-    }
-
-    return rep_id;
-    */
-    return mainCg_->vals().getRep(id);
-  }
 
   const PtstoSet &getPointsTo(ValueMap::Id id) {
     // Convert input objID to rep ObjID:
@@ -113,16 +85,64 @@ class SpecAndersCS : public llvm::ModulePass,
     return graph_.getNode(rep_id).ptsto();
   }
 
+
+
+  /// Handle invalidation events from the new pass manager.
+  /// By definition, this result is stateless and so remains valid.
+  bool invalidate(llvm::Function &, const llvm::PreservedAnalyses &,
+                  llvm::FunctionAnalysisManager::Invalidator &) {
+    return false;
+  }
+
+ protected:
+  std::unordered_map<const llvm::Value *, PtstoSet> ptsCache_;
+  AndersGraph graph_;
+  Cg *mainCg_;
+
+ private:
+  SpecAndersCS &anders_;
+
+  PtstoSet *ptsCacheGet(const llvm::Value *val);
+};
+
+
+
+
+/*
+ *
+ * SpecAndersCS
+ *
+ */
+
+//#include "llvm/IR/PassManager.h"
+class SpecAndersCS : public llvm::AnalysisInfoMixin<SpecAndersCS> {
+  friend AnalysisInfoMixin<SpecAndersCS>;
+
+  static llvm::AnalysisKey Key;
+
+public:
+  using Result = SpecAndersCSResult;
+
+  //SpecAndersCSResult run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+  SpecAndersCSResult run(llvm::Function &F, llvm::FunctionAnalysisManager &FM);
+
+
+
+
+
+  /*
+   * FIXME ? old stuff that might belong here still b/c of dependencies
+   */
+  const AssumptionSet &getSpecAssumptions() const {
+    return specAssumptions_;
+  }
+
+
   ConstraintPass &getConstraintPass() {
     return *consPass_;
   }
 
  private:
-  // Takes dynamic pointsto information, as well as hot/cold basic block
-  //   information, and trims the edges of the DUG appropriately
-  // std::map<ValueMap::Id, Bitmap>
-  // addDynPtstoInfo(llvm::Module &m, ValueMap &map);
-
   // Solves the remaining graph, providing full flow-sensitive inclusion-based
   // points-to analysis
   bool solve();
@@ -139,26 +159,63 @@ class SpecAndersCS : public llvm::ModulePass,
   void handleGraphChange(size_t old_size,
       Worklist<AndersGraph::Id> &wl,
       std::vector<uint32_t> &priority);
-  PtstoSet *ptsCacheGet(const llvm::Value *val);
 
  protected:
-  // Private data {{{
-  AndersGraph graph_;
 
   std::unique_ptr<DynamicInfo> dynInfo_;
   std::unique_ptr<CgCache> cgCache_;
   std::unique_ptr<CgCache> callCgCache_;
-  Cg *mainCg_;
   AssumptionSet specAssumptions_;
+  AndersGraph graph_;
+  Cg *mainCg_;
 
   ConstraintPass *consPass_;
 
   std::map<ValueMap::Id, ValueMap::Id> hcdPairs_;
 
-  std::unordered_map<const llvm::Value *, PtstoSet> ptsCache_;
-
-  // DynPtstoLoader *dynPts_;
-  //}}}
 };
+
+
+
+
+
+
+
+
+
+
+/*
+ *
+ * SpecAndersCSWrapperPass
+ * Legacy wrapper pass to provide the SpecAndersCSResult object.
+ *
+ */
+
+
+//class SpecAndersCSWrapperPass : public llvm::ModulePass {
+class SpecAndersCSWrapperPass : public llvm::FunctionPass {
+  std::unique_ptr<SpecAndersCSResult> Result;
+
+public:
+  static char ID;
+
+  SpecAndersCSWrapperPass();
+
+  SpecAndersCSResult &getResult() { return *Result; }
+  const SpecAndersCSResult &getResult() const { return *Result; }
+
+  //bool runOnModule(llvm::Module &M) override;
+  bool runOnFunction(llvm::Function &F) override;
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override;
+
+  //void initializePass();
+  bool doInitialization(llvm::Module &M) override;
+  bool doFinalization(llvm::Module &M) override;
+
+};
+
+//llvm::ModulePass *createSpecAndersCSWrapperPass();
+llvm::FunctionPass *createSpecAndersCSWrapperPass();
+
 
 #endif  // INCLUDE_SPECANDERSCS_H_
