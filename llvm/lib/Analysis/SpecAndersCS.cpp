@@ -38,7 +38,10 @@
 #include "llvm/Oha/lib/IndirFcnTarget.h"
 #include "llvm/Oha/lib/DynPtsto.h"
 
+SpecAndersCS *global_spec_anders_cs = 0x0;
+
 using std::swap;
+using SpecAndersCSMixin = SpecAndersCS;
 
 // Error handling functions {{{
 // Don't warn about this (if it is an) unused function... I'm being sloppy
@@ -144,8 +147,13 @@ SpecAndersCSResult::~SpecAndersCSResult() = default;
 
 llvm::AliasResult SpecAndersCSResult::alias(const llvm::MemoryLocation &L1,
                                       const llvm::MemoryLocation &L2) {
-  // cporter FIXME: call into the real alias function.
-  return llvm::MayAlias;
+  /*static int set_global = 1;
+  if(set_global){
+      anders_mixin_ = (SpecAndersCS &) *((SpecAndersCS *) global_spec_anders_cs);
+      set_global = 0;
+  }
+  return anders_mixin_.alias(L1, L2);*/
+  return global_spec_anders_cs->alias(L1, L2);
 }
 
 
@@ -998,6 +1006,7 @@ bool SpecAndersCS::runOnModule(llvm::Module &m) {
   graph_.cleanup();
 
   // We do not modify code, ever!
+  global_spec_anders_cs = this;
   return false;
 }
 

@@ -28,13 +28,14 @@
 // The actual SFS module, most of the work is done via the ObjectMap and Def-Use
 // Graph (DUG), these methods mostly operate on them.
 
+
 /*
  *
  * SpecAndersCSResult
  *
  */
 
-class SpecAndersCSMixin;
+class SpecAndersCS;
 
 using AliasResult = llvm::AliasResult;
 using MemoryLocation = llvm::MemoryLocation;
@@ -45,7 +46,7 @@ class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
 
  public:
 
-  explicit SpecAndersCSResult(SpecAndersCSMixin &anders_mixin);
+  explicit SpecAndersCSResult(SpecAndersCS &anders_mixin);
   SpecAndersCSResult(SpecAndersCSResult &&RHS);
   ~SpecAndersCSResult();
 
@@ -69,31 +70,8 @@ class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
   }
 
  private:
-  SpecAndersCSMixin &anders_mixin_;
+  SpecAndersCS &anders_mixin_;
 };
-
-
-
-
-
-
-
-
-
-
-class SpecAndersCSMixin : public llvm::AnalysisInfoMixin<SpecAndersCSMixin> {
-
-  friend AnalysisInfoMixin<SpecAndersCSMixin>;
-  static llvm::AnalysisKey Key;
-
-public:
-  using Result = SpecAndersCSResult;
-  SpecAndersCSResult run(llvm::Function &F, llvm::FunctionAnalysisManager &FM);
-};
-
-
-
-
 
 
 
@@ -104,7 +82,11 @@ public:
  */
 
 class SpecAndersCS : public llvm::ModulePass,
-                     public llvm::AAResultBase<SpecAndersCS> {
+                     public llvm::AAResultBase<SpecAndersCS>,
+                     public llvm::AnalysisInfoMixin<SpecAndersCS> {
+
+  friend AnalysisInfoMixin<SpecAndersCS>;
+  static llvm::AnalysisKey Key;
 
 public:
   static char ID;
@@ -210,6 +192,13 @@ public:
 
 
 
+
+
+
+
+
+
+
 /*
  *
  * SpecAndersCSWrapperPass
@@ -244,6 +233,9 @@ public:
 llvm::ImmutablePass *createSpecAndersCSWrapperPass();
 //llvm::ModulePass *createSpecAndersCSWrapperPass();
 //llvm::FunctionPass *createSpecAndersCSWrapperPass();
+
+
+
 
 
 #endif  // INCLUDE_SPECANDERSCS_H_
