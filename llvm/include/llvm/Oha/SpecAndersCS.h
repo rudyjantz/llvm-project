@@ -34,7 +34,7 @@
  *
  */
 
-class SpecAndersCS;
+class SpecAndersCSMixin;
 
 using AliasResult = llvm::AliasResult;
 using MemoryLocation = llvm::MemoryLocation;
@@ -45,7 +45,7 @@ class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
 
  public:
 
-  explicit SpecAndersCSResult(SpecAndersCS &anders);
+  explicit SpecAndersCSResult(SpecAndersCSMixin &anders_mixin);
   SpecAndersCSResult(SpecAndersCSResult &&RHS);
   ~SpecAndersCSResult();
 
@@ -61,8 +61,81 @@ class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
       bool OrLocal = false);
 
 
-  ValueMap::Id getRep(ValueMap::Id id) {
-    return mainCg_->vals().getRep(id);
+  /// Handle invalidation events from the new pass manager.
+  /// By definition, this result is stateless and so remains valid.
+  bool invalidate(llvm::Function &, const llvm::PreservedAnalyses &,
+                  llvm::FunctionAnalysisManager::Invalidator &) {
+    return false;
+  }
+
+ private:
+  SpecAndersCSMixin &anders_mixin_;
+};
+
+
+
+
+
+
+
+
+
+
+class SpecAndersCSMixin : public llvm::AnalysisInfoMixin<SpecAndersCSMixin> {
+
+  friend AnalysisInfoMixin<SpecAndersCSMixin>;
+  static llvm::AnalysisKey Key;
+
+public:
+  using Result = SpecAndersCSResult;
+  SpecAndersCSResult run(llvm::Function &F, llvm::FunctionAnalysisManager &FM);
+};
+
+
+
+
+
+
+
+/*
+ *
+ * SpecAndersCS
+ *
+ */
+
+class SpecAndersCS : public llvm::ModulePass,
+                     public llvm::AAResultBase<SpecAndersCS> {
+
+public:
+  static char ID;
+  SpecAndersCS();
+  explicit SpecAndersCS(char &id);
+
+  using Result = SpecAndersCSResult;
+
+  //SpecAndersCSResult run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
+  SpecAndersCSResult run(llvm::Function &F, llvm::FunctionAnalysisManager &FM);
+
+  virtual bool runOnModule(llvm::Module &M) override;
+
+  void getAnalysisUsage(llvm::AnalysisUsage &usage) const;
+
+  virtual llvm::AliasResult alias(const llvm::MemoryLocation &L1,
+                                  const llvm::MemoryLocation &L2);
+
+  virtual llvm::ModRefInfo getModRefInfo(llvm::ImmutableCallSite CS,
+                             const llvm::MemoryLocation &Loc);
+  virtual llvm::ModRefInfo getModRefInfo(llvm::ImmutableCallSite CS1,
+                                     llvm::ImmutableCallSite CS2);
+  // Do not use it.
+  bool pointsToConstantMemory(const llvm::MemoryLocation &Loc,
+      bool OrLocal = false);
+
+  /*
+   * FIXME ? old stuff that might belong here still b/c of dependencies
+   */
+  const AssumptionSet &getSpecAssumptions() const {
+    return specAssumptions_;
   }
 
   const std::set<std::vector<CsCFG::Id>> getInvalidStacks() const {
@@ -77,70 +150,20 @@ class SpecAndersCSResult : public llvm::AAResultBase<SpecAndersCSResult> {
     return mainCg_->vals();
   }
 
+  ValueMap::Id getRep(ValueMap::Id id) {
+    return mainCg_->vals().getRep(id);
+  }
 
   const PtstoSet &getPointsTo(ValueMap::Id id) {
     // Convert input objID to rep ObjID:
     auto rep_id = getRep(id);
-
     return graph_.getNode(rep_id).ptsto();
   }
-
-
-
-  /// Handle invalidation events from the new pass manager.
-  /// By definition, this result is stateless and so remains valid.
-  bool invalidate(llvm::Function &, const llvm::PreservedAnalyses &,
-                  llvm::FunctionAnalysisManager::Invalidator &) {
-    return false;
-  }
-
- protected:
-  std::unordered_map<const llvm::Value *, PtstoSet> ptsCache_;
-  AndersGraph graph_;
-  Cg *mainCg_;
-
- private:
-  SpecAndersCS &anders_;
-
-  PtstoSet *ptsCacheGet(const llvm::Value *val);
-};
-
-
-
-
-/*
- *
- * SpecAndersCS
- *
- */
-
-//#include "llvm/IR/PassManager.h"
-class SpecAndersCS : public llvm::AnalysisInfoMixin<SpecAndersCS> {
-  friend AnalysisInfoMixin<SpecAndersCS>;
-
-  static llvm::AnalysisKey Key;
-
-public:
-  using Result = SpecAndersCSResult;
-
-  //SpecAndersCSResult run(llvm::Module &M, llvm::ModuleAnalysisManager &AM);
-  SpecAndersCSResult run(llvm::Function &F, llvm::FunctionAnalysisManager &FM);
-
-
-
-
-
-  /*
-   * FIXME ? old stuff that might belong here still b/c of dependencies
-   */
-  const AssumptionSet &getSpecAssumptions() const {
-    return specAssumptions_;
-  }
-
 
   ConstraintPass &getConstraintPass() {
     return *consPass_;
   }
+
 
  private:
   // Solves the remaining graph, providing full flow-sensitive inclusion-based
@@ -159,19 +182,22 @@ public:
   void handleGraphChange(size_t old_size,
       Worklist<AndersGraph::Id> &wl,
       std::vector<uint32_t> &priority);
+  PtstoSet *ptsCacheGet(const llvm::Value *val);
 
  protected:
+  AndersGraph graph_;
 
   std::unique_ptr<DynamicInfo> dynInfo_;
   std::unique_ptr<CgCache> cgCache_;
   std::unique_ptr<CgCache> callCgCache_;
-  AssumptionSet specAssumptions_;
-  AndersGraph graph_;
   Cg *mainCg_;
+  AssumptionSet specAssumptions_;
 
   ConstraintPass *consPass_;
 
   std::map<ValueMap::Id, ValueMap::Id> hcdPairs_;
+
+  std::unordered_map<const llvm::Value *, PtstoSet> ptsCache_;
 
 };
 

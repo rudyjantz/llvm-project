@@ -134,58 +134,21 @@ static llvm::cl::opt<bool>
  *
  */
 
-SpecAndersCSResult::SpecAndersCSResult(SpecAndersCS &anders) : anders_(anders) { }
+SpecAndersCSResult::SpecAndersCSResult(SpecAndersCSMixin &anders_mixin) : anders_mixin_(anders_mixin) { }
 
 SpecAndersCSResult::SpecAndersCSResult(SpecAndersCSResult &&RHS) :
-    llvm::AAResultBase<SpecAndersCSResult>(std::move(RHS)), anders_(RHS.anders_) { }
+    llvm::AAResultBase<SpecAndersCSResult>(std::move(RHS)), anders_mixin_(RHS.anders_mixin_) { }
 
 SpecAndersCSResult::~SpecAndersCSResult() = default;
 
 
 llvm::AliasResult SpecAndersCSResult::alias(const llvm::MemoryLocation &L1,
                                       const llvm::MemoryLocation &L2) {
-  auto v1 = L1.Ptr;
-  auto v2 = L2.Ptr;
-
-  auto pv1_pts = ptsCacheGet(v1);
-  auto pv2_pts = ptsCacheGet(v2);
-
-  if (pv1_pts == nullptr) {
-    /*
-    llvm::dbgs() << "Anders couldn't find node: " << obj_id1 <<
-      << " " << FullValPrint(obj_id1, omap_) << "\n";
-    */
-    return AAResultBase::alias(L1, L2);
-  }
-
-  if (pv2_pts == nullptr) {
-    /*
-    llvm::dbgs() << "Anders couldn't find node: " << obj_id2 <<
-      << " " << FullValPrint(obj_id2, omap_) << "\n";
-    */
-    return AAResultBase::alias(L1, L2);
-  }
-
-
-  auto &pts1 = *pv1_pts;
-  auto &pts2 = *pv2_pts;
-
-  // llvm::dbgs() << "Anders Alias Check\n";
-
-  // If either of the sets point to nothing, no alias
-  if (pts1.empty() || pts2.empty()) {
-    return llvm::NoAlias;
-  }
-
-  // Check to see if the two pointers are known to not alias.  They don't alias
-  // if their points-to sets do not intersect.
-  if (!pts1.intersectsIgnoring(pts2,
-        ValueMap::NullValue)) {
-    return llvm::NoAlias;
-  }
-
-  return AAResultBase::alias(L1, L2);
+  // cporter FIXME: call into the real alias function.
+  return llvm::MayAlias;
 }
+
+
 
 llvm::ModRefInfo SpecAndersCSResult::getModRefInfo(
     llvm::ImmutableCallSite CS, const llvm::MemoryLocation &Loc) {
@@ -228,7 +191,7 @@ ImmutablePass *createSpecAndersCSWrapperPass() {
 }
 
 bool SpecAndersCSWrapperPass::doInitialization(llvm::Module &M) {
-  Result.reset(new SpecAndersCSResult(*(new SpecAndersCS())));
+  Result.reset(new SpecAndersCSResult(*(new SpecAndersCSMixin())));
   return false;
 }
 
@@ -242,16 +205,7 @@ void SpecAndersCSWrapperPass::getAnalysisUsage(llvm::AnalysisUsage &usage) const
   llvm::dbgs() << "In SpecAndersCSWrapperPass getAnalysisUsage!\n";
   usage.setPreservesAll();
 
-  // cporter FIXME? do we want AU.addRequired<TargetLibraryInfoWrapperPass>();
-
-  // For DCE
-  usage.addRequired<UnusedFunctions>();
-  // For indirect function following
-  usage.addRequired<IndirFunctionInfo>();
-  usage.addRequired<CsCFG>();
-  usage.addRequired<CallContextLoader>();
-
-  usage.addRequired<ConstraintPass>();
+  usage.addRequired<SpecAndersCS>();
 }
 
 
@@ -305,6 +259,22 @@ SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : ImmutablePass(ID) {
 
 
 
+/*
+ *
+ * SpecAndersCSMixin
+ *
+ */
+
+AnalysisKey SpecAndersCSMixin::Key;
+
+//SpecAndersCSResult SpecAndersCS::run(Module &M, ModuleAnalysisManager &AM) {
+SpecAndersCSResult SpecAndersCSMixin::run(Function &F, FunctionAnalysisManager &AM) {
+  //return CFLAndersAAResult(AM.getResult<TargetLibraryAnalysis>(F));
+  //return ScopedNoAliasAAResult();
+  //return SpecAndersCSResult();
+  //return SpecAndersCSResult(AM.getResult<TargetLibraryAnalysis>(M));
+  return SpecAndersCSResult(*(new SpecAndersCSMixin()));
+}
 
 
 
@@ -314,33 +284,53 @@ SpecAndersCSWrapperPass::SpecAndersCSWrapperPass() : ImmutablePass(ID) {
  * SpecAndersCS
  *
  */
-AnalysisKey SpecAndersCS::Key;
+char SpecAndersCS::ID = 0;
+SpecAndersCS::SpecAndersCS() : llvm::ModulePass(ID) { }
 
-//SpecAndersCSResult SpecAndersCS::run(Module &M, ModuleAnalysisManager &AM) {
-SpecAndersCSResult SpecAndersCS::run(Function &F, FunctionAnalysisManager &AM) {
-  //return CFLAndersAAResult(AM.getResult<TargetLibraryAnalysis>(F));
-  //return ScopedNoAliasAAResult();
-  //return SpecAndersCSResult();
-  //return SpecAndersCSResult(AM.getResult<TargetLibraryAnalysis>(M));
-  return SpecAndersCSResult(*(new SpecAndersCS()));
+namespace llvm {
+  static RegisterPass<SpecAndersCS>
+      SpecAndersCSRP("SpecAndersCS", "dummy Speculative Andersens Analysis",
+          false, true);
+  // RegisterAnalysisGroup<AliasAnalysis> CSSpecAndersRAG(SpecAndersCSRP);
+}  // namespace llvm
+
+
+//INITIALIZE_PASS(SpecAndersCS, "spec-anders-cs-dummy",
+//                "dummy Speculative, Context-sensitive Andersens Alias Analysis",
+//                false, true)
+
+void SpecAndersCS::getAnalysisUsage(llvm::AnalysisUsage &usage) const {
+  llvm::dbgs() << "In SpecAndersCS getAnalysisUsage!\n";
+  usage.setPreservesAll();
+
+  // cporter FIXME? do we want AU.addRequired<TargetLibraryInfoWrapperPass>();
+
+  // For DCE
+  usage.addRequired<UnusedFunctions>();
+  // For indirect function following
+  usage.addRequired<IndirFunctionInfo>();
+  usage.addRequired<CsCFG>();
+  usage.addRequired<CallContextLoader>();
+
+  usage.addRequired<ConstraintPass>();
 }
 
 
 
+bool SpecAndersCS::runOnModule(llvm::Module &m) {
+  llvm::dbgs() << "In SpecAndersCS runOnModule\n";
 
+  // Get all analyses...
+  const UnusedFunctions &unused_fcns = getAnalysis<UnusedFunctions>();
+  auto &indir_info = getAnalysis<IndirFunctionInfo>();
+  auto &call_info = getAnalysis<CallContextLoader>();
+  auto &cs_cfg = getAnalysis<CsCFG>();
 
-#if 0
-bool SpecAndersCS::run(llvm::Module &m,
-                        ConstraintPass &cp,
-                        UnusedFunctions &unused_fcns,
-                        IndirFunctionInfo &indir_fcns,
-                        CallContextLoader &call_info,
-                        CsCFG &cs_cfg) {
   // Set up our alias analysis
   // -- This is required for the llvm AliasAnalysis interface
   // InitializeAliasAnalysis(this);
 
-  consPass_ = cp;
+  consPass_ = &getAnalysis<ConstraintPass>();
 
   // FIXME: Acutally construct?
   dynInfo_ = std14::make_unique<DynamicInfo>(unused_fcns,
@@ -1010,9 +1000,12 @@ bool SpecAndersCS::run(llvm::Module &m,
   // We do not modify code, ever!
   return false;
 }
-#endif
 
-PtstoSet *SpecAndersCSResult::ptsCacheGet(const llvm::Value *val) {
+
+
+
+
+PtstoSet *SpecAndersCS::ptsCacheGet(const llvm::Value *val) {
   /*
   // While val is a constant bitcast, strip away the outer bitcast
   while (auto ce = dyn_cast<llvm::ConstantExpr>(val)) {
@@ -1044,5 +1037,64 @@ PtstoSet *SpecAndersCSResult::ptsCacheGet(const llvm::Value *val) {
 
 
 
+llvm::AliasResult SpecAndersCS::alias(const llvm::MemoryLocation &L1,
+                                      const llvm::MemoryLocation &L2) {
+  auto v1 = L1.Ptr;
+  auto v2 = L2.Ptr;
+
+  auto pv1_pts = ptsCacheGet(v1);
+  auto pv2_pts = ptsCacheGet(v2);
+
+  if (pv1_pts == nullptr) {
+    /*
+    llvm::dbgs() << "Anders couldn't find node: " << obj_id1 <<
+      << " " << FullValPrint(obj_id1, omap_) << "\n";
+    */
+    return AAResultBase::alias(L1, L2);
+  }
+
+  if (pv2_pts == nullptr) {
+    /*
+    llvm::dbgs() << "Anders couldn't find node: " << obj_id2 <<
+      << " " << FullValPrint(obj_id2, omap_) << "\n";
+    */
+    return AAResultBase::alias(L1, L2);
+  }
 
 
+  auto &pts1 = *pv1_pts;
+  auto &pts2 = *pv2_pts;
+
+  // llvm::dbgs() << "Anders Alias Check\n";
+
+  // If either of the sets point to nothing, no alias
+  if (pts1.empty() || pts2.empty()) {
+    return llvm::NoAlias;
+  }
+
+  // Check to see if the two pointers are known to not alias.  They don't alias
+  // if their points-to sets do not intersect.
+  if (!pts1.intersectsIgnoring(pts2,
+        ValueMap::NullValue)) {
+    return llvm::NoAlias;
+  }
+
+  return AAResultBase::alias(L1, L2);
+}
+
+
+llvm::ModRefInfo SpecAndersCS::getModRefInfo(
+    llvm::ImmutableCallSite CS, const llvm::MemoryLocation &Loc) {
+  return llvm::AAResultBase<SpecAndersCS>::getModRefInfo(CS, Loc);
+}
+
+llvm::ModRefInfo SpecAndersCS::getModRefInfo(
+    llvm::ImmutableCallSite CS1, llvm::ImmutableCallSite CS2) {
+  return llvm::AAResultBase<SpecAndersCS>::getModRefInfo(CS1, CS2);
+}
+
+bool SpecAndersCS::pointsToConstantMemory(const llvm::MemoryLocation &loc,
+    bool or_local) {
+  return llvm::AAResultBase<SpecAndersCS>::pointsToConstantMemory(
+      loc, or_local);
+}
