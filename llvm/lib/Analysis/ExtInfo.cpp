@@ -100,9 +100,9 @@ static const llvm::Type *findLargestType(ModInfo &info,
     }
   }
 
-  if (!found && max_size == 0 && conservative) {
-    return info.getMaxStructInfo().type();
-  }
+  //if (!found && max_size == 0 && conservative) {
+  //  return info.getMaxStructInfo().type();
+  //}
 
   return biggest_type;
 }
