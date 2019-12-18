@@ -147,6 +147,7 @@ class ValueMap {
     if (auto c = dyn_cast<llvm::Constant>(val)) {
       auto it = constMap_.find(c);
       if (it == std::end(constMap_)) {
+        return ret; // return an empty set.
         llvm::dbgs() << "No entry for constant: " << *c << "\n";
         // assert(0);
         llvm_unreachable("unknown contant");
