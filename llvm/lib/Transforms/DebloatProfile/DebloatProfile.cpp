@@ -38,6 +38,8 @@ using namespace std;
 
 #define DEBUG_TYPE "DebloatProfile"
 
+//#define LOOP_BASIC
+
 
 // TODO move these to a util function when we leave the llvm tree
 std::string getDemangledName(const Function &F) {
@@ -92,6 +94,7 @@ namespace {
         dp_stats_t stats;
         set<Loop *> instrumented_loops;
         std::map<Instruction*, uint64_t> jumpphinodes;
+        Type *int32Ty;
 
         bool call_inst_is_in_loop(CallInst *call_inst);
         bool can_ignore_called_func(Function *, CallInst *);
@@ -124,6 +127,10 @@ bool DebloatProfile::doInitialization(Module &M)
 {
     call_inst_count = 0;
     func_count = 0;
+
+    int32Ty = IntegerType::getInt32Ty(M.getContext());
+
+
     init_debprof_print_func(M);
     stats.max_num_args = 0;
     stats.num_calls_not_in_loops = 0;
@@ -341,15 +348,14 @@ void DebloatProfile::instrument_callsite(Instruction *call_inst,
                                         unsigned int called_func_id,
                                         set<Value *> func_arguments_set)
 {
-    Module *thisModule = call_inst->getModule();
-    Type *int32Ty = IntegerType::getInt32Ty(thisModule->getContext());
-    Function *userInstrumentFunc = debprof_print_args_func;
-    LLVM_DEBUG(dbgs() << "function::" << *userInstrumentFunc);
+    IRBuilder<> builder(call_inst);
+    std::vector<Value *> ArgsV;
+
+
+    LLVM_DEBUG(dbgs() << "function::" << *debprof_print_args_func);
     LLVM_DEBUG(dbgs() << "Instrumented for callins::" << call_inst
                << " callsite::"  << callsite_id << "\n");
 
-    IRBuilder<> builder(call_inst);
-    std::vector<Value *> ArgsV;
 
 
     // We have to instrument a call to debprof_print_args. To do that, we need
@@ -402,7 +408,7 @@ void DebloatProfile::instrument_callsite(Instruction *call_inst,
     }
 
     // Create the call to debprof_print_args
-    Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
+    Value *callinstr = builder.CreateCall(debprof_print_args_func, ArgsV);
     LLVM_DEBUG(dbgs() << "callinstr::" << *callinstr << "\n");
 
 }
@@ -413,14 +419,17 @@ void DebloatProfile::instrument_outside_loop(Instruction *call_inst,
                                              unsigned int called_func_id,
                                              set<Value *> func_arguments_set)
 {
-    //instrument_outside_loop_basic(call_inst,
-    //                              callsite_id,
-    //                              called_func_id,
-    //                              func_arguments_set);
+#ifdef LOOP_BASIC
+    instrument_outside_loop_basic(call_inst,
+                                  callsite_id,
+                                  called_func_id,
+                                  func_arguments_set);
+#else
     instrument_outside_loop_avail_args(call_inst,
                                        callsite_id,
                                        called_func_id,
                                        func_arguments_set);
+#endif
 }
 
 
@@ -541,7 +550,6 @@ void DebloatProfile::instrument_outside_loop_avail_args(Instruction *call_inst,
     Loop *L;
     Instruction *insBef;
     BasicBlock *preHeaderBB;
-    Function *userInstrumentFunc = debprof_print_args_func;
 
     L = LI->getLoopFor(call_inst->getParent());
     preHeaderBB = L->getLoopPreheader();
@@ -553,7 +561,6 @@ void DebloatProfile::instrument_outside_loop_avail_args(Instruction *call_inst,
 
             // FIXME for now, instrument just the callsite_id and the
             // called_func_id
-            Type *int32Ty = IntegerType::getInt32Ty(call_inst->getModule()->getContext());
             IRBuilder<> builder(insBef);
             std::vector<Value *> ArgsV;
 
@@ -621,7 +628,7 @@ void DebloatProfile::instrument_outside_loop_avail_args(Instruction *call_inst,
             }
 
             // Create the call to debprof_print_args
-            Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
+            Value *callinstr = builder.CreateCall(debprof_print_args_func, ArgsV);
             LLVM_DEBUG(dbgs() << "callinstr::" << *callinstr << "\n");
 
 
@@ -651,7 +658,6 @@ void DebloatProfile::instrument_outside_loop_basic(Instruction *call_inst,
     Loop *L;
     Instruction *insBef;
     BasicBlock *preHeaderBB;
-    Function *userInstrumentFunc = debprof_print_args_func;
 
     L = LI->getLoopFor(call_inst->getParent());
     preHeaderBB = L->getLoopPreheader();
@@ -662,13 +668,12 @@ void DebloatProfile::instrument_outside_loop_basic(Instruction *call_inst,
 
             // FIXME for now, instrument just the callsite_id and the
             // called_func_id
-            Type *int32Ty = IntegerType::getInt32Ty(call_inst->getModule()->getContext());
             IRBuilder<> builder(insBef);
             std::vector<Value *> ArgsV;
             ArgsV.push_back(llvm::ConstantInt::get(int32Ty, 2, false));
             ArgsV.push_back(llvm::ConstantInt::get(int32Ty, callsite_id, false));
             ArgsV.push_back(llvm::ConstantInt::get(int32Ty, called_func_id, false));
-            Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
+            Value *callinstr = builder.CreateCall(debprof_print_args_func, ArgsV);
             LLVM_DEBUG(dbgs() << "callinstr(loop)::" << *callinstr << "\n");
         }
     }else{
@@ -684,8 +689,6 @@ void DebloatProfile::instrument_outside_loop_basic(Instruction *call_inst,
 
 void DebloatProfile::init_debprof_print_func(Module &M)
 {
-    LLVMContext &ctxt = M.getContext();
-    Type *int32Ty = IntegerType::getInt32Ty(ctxt);
     Type *ArgTypes[] = { int32Ty  };
     string custom_instr_func_name("debprof_print_args");
 
