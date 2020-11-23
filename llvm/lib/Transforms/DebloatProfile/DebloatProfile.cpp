@@ -692,23 +692,6 @@ void DebloatProfile::init_debprof_print_func(Module &M)
     Type *ArgTypes[] = { int32Ty  };
     string custom_instr_func_name("debprof_print_args");
 
-    /*FunctionCallee fc =
-    //dyn_cast<FunctionCallee>(
-    //debprof_print_args_func = dyn_cast<Function>(
-        M.getOrInsertFunction(
-            "debprof_print_args",
-            FunctionType::get(
-                int32Ty ,
-                ArgTypes,
-                true
-            )
-        );
-
-    //);
-    FunctionCallee *fcp = &fc;
-    //debprof_print_args_func = dyn_cast<Function>(fcp);
-    */
-
     debprof_print_args_func =
       Function::Create(FunctionType::get(int32Ty, ArgTypes, true),
                        Function::ExternalLinkage,
