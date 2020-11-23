@@ -91,16 +91,27 @@ namespace {
         unsigned int func_count;
         dp_stats_t stats;
         set<Loop *> instrumented_loops;
+        std::map<Instruction*, uint64_t> jumpphinodes;
 
         bool call_inst_is_in_loop(CallInst *call_inst);
         bool can_ignore_called_func(Function *, CallInst *);
         void init_debprof_print_func(Module &);
         void dump_stats(void);
 
+        void backslice(Instruction *I);
+
         void instrument_callsite(Instruction *call_inst,
                                  unsigned int callsite_id,
                                  unsigned int called_func_id,
                                  set<Value *> func_arguments_set);
+        void instrument_outside_loop_basic(Instruction *call_inst,
+                                           unsigned int callsite_id,
+                                           unsigned int called_func_id,
+                                           set<Value *> func_arguments_set);
+        void instrument_outside_loop_avail_args(Instruction *call_inst,
+                                                unsigned int callsite_id,
+                                                unsigned int called_func_id,
+                                                set<Value *> func_arguments_set);
         void instrument_outside_loop(Instruction *call_inst,
                                      unsigned int callsite_id,
                                      unsigned int called_func_id,
@@ -111,6 +122,8 @@ namespace {
 
 bool DebloatProfile::doInitialization(Module &M)
 {
+    call_inst_count = 0;
+    func_count = 0;
     init_debprof_print_func(M);
     stats.max_num_args = 0;
     stats.num_calls_not_in_loops = 0;
@@ -226,6 +239,7 @@ bool DebloatProfile::runOnFunction(Function &F)
 
                 if(call_inst_to_id.find(call_inst) == call_inst_to_id.end()){
                     call_inst_to_id[call_inst] = call_inst_count++;
+                    LLVM_DEBUG(dbgs() << "Hit init\n");
                 }
                 //LLVM_DEBUG(dbgs() <<"\ninstrument_profile call_inst_count:"<<call_inst_count);
                 //LLVM_DEBUG(dbgs() << " CallPredictionTrain: got call instr "<<*call_inst<<"\n");
@@ -235,13 +249,10 @@ bool DebloatProfile::runOnFunction(Function &F)
                 //LLVM_DEBUG(dbgs()<<"with arguments ::\n" );
 
                 num_args = call_inst->getNumArgOperands();
-                std::ostringstream callsite_info;
-                callsite_info
-                  << "\n#_CALL_instrument:funcID:"
-                  << func_name_to_id[called_func_name]
-                  << ":call_inst_count:"
-                  << call_inst_to_id[call_inst]<<":"; //<<":argNum:"<<i<<":";
-                callsite_info << "_max_args_:" << num_args << ":";
+                LLVM_DEBUG(dbgs()
+                  << "\n#_CALL_instrument:funcID:" << func_name_to_id[called_func_name]
+                  << ":call_inst_count:" << call_inst_to_id[call_inst]<<":"
+                  << "num_args:" << num_args << "\n");
 
                 set<Value*> func_arguments_set;
                 cannot_instrument = false;
@@ -281,7 +292,7 @@ bool DebloatProfile::runOnFunction(Function &F)
                            || argV->getType()->isFloatTy()
                            || argV->getType()->isDoubleTy()
                            || argV->getType()->isPointerTy())){
-                            LLVM_DEBUG(dbgs() << "valid type argument::" << *argI);
+                            LLVM_DEBUG(dbgs() << "valid type argument::" << *argI << "\n");
                             func_arguments_set.insert(argV);
                         }else{
                             LLVM_DEBUG(dbgs() << "wtf 1\n");
@@ -291,7 +302,6 @@ bool DebloatProfile::runOnFunction(Function &F)
                         //computeControlDependence(PDT, needRDFofBBs, RDFBlocks);
                         //LLVM_DEBUG(dbgs()<<"Calling rdf instrument::"<<RDFBlocks.size());
                         //std::string rdf_info_str = instrumentRDF(RDFBlocks, call_inst_to_id[call_inst], i+1 );
-                        //callsite_info<<rdf_info_str;
                     }else{
                         LLVM_DEBUG(dbgs() << "wtf 2z\n");
                         if((argV->getType()->isIntegerTy()
@@ -402,6 +412,252 @@ void DebloatProfile::instrument_outside_loop(Instruction *call_inst,
                                              unsigned int callsite_id,
                                              unsigned int called_func_id,
                                              set<Value *> func_arguments_set)
+{
+    //instrument_outside_loop_basic(call_inst,
+    //                              callsite_id,
+    //                              called_func_id,
+    //                              func_arguments_set);
+    instrument_outside_loop_avail_args(call_inst,
+                                       callsite_id,
+                                       called_func_id,
+                                       func_arguments_set);
+}
+
+
+/**********************************************
+ * @param instruction, branchnumber, operand number
+ *        switch number
+ * Backslice the operand of the branch to its
+ * native birth point and instrument an emit
+ * function to print out them
+ * @return nothing
+ *******************************************/
+void DebloatProfile::backslice(Instruction *I)
+{
+    LLVM_DEBUG(dbgs() << "hit 0\n");
+
+    Instruction *I2, *I3;
+
+    // FIXME: jumpphinodes needs proper initialization, etc.
+    if(!jumpphinodes[I]){
+        LoadInst *LI = dyn_cast<LoadInst>(I);
+        CallInst *CI = dyn_cast<CallInst>(I);
+        SelectInst *SI = dyn_cast<SelectInst>(I);
+
+        /**************************************************************************
+        * If instruction is a function pointer or a binary operator, we have
+        * found the native birthpoint.
+        **************************************************************************/
+        if(CI || SI || I->isBinaryOp() || dyn_cast<GetElementPtrInst>(I) ||
+           dyn_cast<AllocaInst>(I) || dyn_cast<GlobalVariable>(I)){
+            LLVM_DEBUG(dbgs() << "hit 1\n");
+            //instrument(I, dyn_cast<Value>(I));
+        }else if(LI){
+            /**************************************************************************
+            * If instruction is a load instruction, we have to check if it loading from
+            * a local variable (alloca), a global variable (globalvariable) or a pointer
+            * (getelementptrinst/bitcast) as this means we have found the native birthpoint.
+            * Else, backslice the operand.
+            **************************************************************************/
+            AllocaInst *AI = dyn_cast<AllocaInst>(LI->getOperand(0));
+            GlobalVariable *GV = dyn_cast<GlobalVariable>(LI->getOperand(0));
+            GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(LI->getOperand(0));
+            InvokeInst *II = dyn_cast<InvokeInst>(LI->getOperand(0));
+            I2 = dyn_cast<Instruction>(LI->getOperand(0));
+
+            if((!I2 && !GV) || AI || GV || GEP || II
+               || dyn_cast<Instruction>(LI->getOperand(0))->isCast()){
+                //instrument(I, dyn_cast<Value>(I));
+                LLVM_DEBUG(dbgs() << "hit 2\n");
+                LLVM_DEBUG(dbgs() << *I << "\n");
+                LLVM_DEBUG(dbgs() << "hit 2 done\n");
+            }
+            else {
+                backslice(I2);
+                LLVM_DEBUG(dbgs() << "hit 3\n");
+            }
+        }else if(isa<PHINode>(I)){
+            /**************************************************************************
+            * If instruction is a Phi function, we backslice for each operand in the Phi
+            * function.
+            **************************************************************************/
+            jumpphinodes[I] = 1;
+            I3 = I;
+            while(isa<PHINode>(I3)){
+                I3 = I3->getNextNode();
+            }
+            I3 = I3->getPrevNode();
+
+            uint64_t i;
+            for(i = 0; i < I->getNumOperands(); ++i){
+                I2 = dyn_cast<Instruction>(I->getOperand(i));
+                if(I2){
+                    InvokeInst *II = dyn_cast<InvokeInst>(I2);
+                    if(!II){
+                        backslice(I2);
+                        LLVM_DEBUG(dbgs() << "hit 4\n");
+                    }
+                    else {
+                        //instrument(I2, dyn_cast<Value>(I2));
+                        LLVM_DEBUG(dbgs() << "hit 5\n");
+                    }
+                }
+                else {
+                    //instrument(I3, dyn_cast<Value>(I->getOperand(i)));
+                    LLVM_DEBUG(dbgs() << "hit 6\n");
+                }
+            }
+
+        }else {
+            /**************************************************************************
+            * Normally, these are casting functions left so we just backslice until we get
+            * to a load
+            **************************************************************************/
+            I2 = dyn_cast<Instruction>(I->getOperand(0));
+            if(I2){
+                InvokeInst *II = dyn_cast<InvokeInst>(I2);
+                if(!II){
+                    backslice(dyn_cast<Instruction>(I->getOperand(0)));
+                    LLVM_DEBUG(dbgs() << "hit 7\n");
+                }
+                else {
+                    //instrument(I2, dyn_cast<Value>(I2));
+                    LLVM_DEBUG(dbgs() << "hit 8\n");
+                }
+            }
+            else {
+                //instrument(I, dyn_cast<Value>(I->getOperand(0)));
+                LLVM_DEBUG(dbgs() << "hit 9\n");
+            }
+        }
+    }
+}
+
+void DebloatProfile::instrument_outside_loop_avail_args(Instruction *call_inst,
+                                                        unsigned int callsite_id,
+                                                        unsigned int called_func_id,
+                                                        set<Value *> func_arguments_set)
+{
+    Loop *L;
+    Instruction *insBef;
+    BasicBlock *preHeaderBB;
+    Function *userInstrumentFunc = debprof_print_args_func;
+
+    L = LI->getLoopFor(call_inst->getParent());
+    preHeaderBB = L->getLoopPreheader();
+    if(preHeaderBB){
+        // if we have not yet instrumented this loop...
+        if(instrumented_loops.count(L) == 0){
+            instrumented_loops.insert(L);
+            insBef = preHeaderBB->getTerminator();
+
+            // FIXME for now, instrument just the callsite_id and the
+            // called_func_id
+            Type *int32Ty = IntegerType::getInt32Ty(call_inst->getModule()->getContext());
+            IRBuilder<> builder(insBef);
+            std::vector<Value *> ArgsV;
+
+
+            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, 2, false));
+            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, callsite_id, false));
+            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, called_func_id, false));
+            //Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
+            //LLVM_DEBUG(dbgs() << "callinstr(loop)::" << *callinstr << "\n");
+
+
+
+
+
+
+
+            ArgsV.push_back(llvm::ConstantInt::get(int32Ty, 0, false));
+
+            // The next two arguments are always the callsite_id, followd by the
+            // called_func_id.
+            ArgsV.push_back(llvm::ConstantInt::get(int32Ty, callsite_id, false));
+            ArgsV.push_back(llvm::ConstantInt::get(int32Ty, called_func_id, false));
+
+            // Now push the args that were passed at the callsite
+            for(Value *funcArg : func_arguments_set){
+                LLVM_DEBUG(dbgs() << "checking funcArg\n");
+                Value *castedArg = nullptr;
+                if(funcArg != NULL){
+                    if (funcArg->getType()->isFloatTy() || funcArg->getType()->isDoubleTy()){
+                        LLVM_DEBUG(dbgs() << "float or double\n");
+                        castedArg = builder.CreateFPToSI(funcArg, int32Ty);
+                    }else if(funcArg->getType()->isIntegerTy()){
+                        LLVM_DEBUG(dbgs() << "integer\n");
+                        castedArg = builder.CreateIntCast(funcArg, int32Ty, true);
+                    }else if(funcArg->getType()->isPointerTy()){
+                        LLVM_DEBUG(dbgs() << "pointer\n");
+                        castedArg = builder.CreatePtrToInt(funcArg, int32Ty);
+                    }
+
+                    if(castedArg == nullptr){
+                        continue;
+                    }
+
+                    Instruction *backslice_me = dyn_cast<Instruction>(castedArg);
+                    if(backslice_me){
+                        backslice(backslice_me);
+                        // works, but it dumps the ptr, not the pointed-to value
+                        //ArgsV.push_back(backslice_me->getOperand(0));
+
+                        // fails at runtime
+                        //ArgsV.push_back(builder.CreateIntCast(backslice_me->getOperand(0), int32Ty, true));
+                        // not sure what this is even doing. behaves like the naive ptr case
+                        //ArgsV.push_back(builder.CreatePtrToInt(backslice_me->getOperand(0), int32Ty));
+
+                        ArgsV.push_back(builder.CreateLoad(int32Ty, backslice_me->getOperand(0)));
+
+                        LLVM_DEBUG(dbgs() << "pushing::" << *backslice_me->getOperand(0) << "\n");
+                        LLVM_DEBUG(dbgs() << "was type:" << *backslice_me->getOperand(0)->getType() << "\n");
+                        //LLVM_DEBUG(dbgs() << "was type:" << *(*backslice_me->getOperand(0)).getType() << "\n");
+                    }else{
+                        ArgsV.push_back(castedArg);
+                        LLVM_DEBUG(dbgs() << "pushing::" << *castedArg << "\n");
+                    }
+                }
+            }
+            // The size of ArgsV is equal to the final number of args we're passing
+            // to debprof_print_args. Subtract 1 to get the number of variadic args,
+            // and update argument 0 accordingly.
+            unsigned int num_variadic_args = ArgsV.size() - 1;
+            ArgsV[0] = llvm::ConstantInt::get(int32Ty, num_variadic_args, false);
+
+            // Track the max number of args that debprof_print_args is going to write
+            // to file.
+            if(num_variadic_args > stats.max_num_args){
+                stats.max_num_args = num_variadic_args;
+            }
+
+            // Create the call to debprof_print_args
+            Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
+            LLVM_DEBUG(dbgs() << "callinstr::" << *callinstr << "\n");
+
+
+
+
+
+
+
+
+
+
+        }
+    }else{
+        // FIXME see LLVM doxygen on getLoopPreheader. The fix is to walk
+        // incoming edges to the first BB of the loop
+        stats.num_loops_no_preheader++;
+    }
+
+}
+
+
+void DebloatProfile::instrument_outside_loop_basic(Instruction *call_inst,
+                                                   unsigned int callsite_id,
+                                                   unsigned int called_func_id,
+                                                   set<Value *> func_arguments_set)
 {
     Loop *L;
     Instruction *insBef;
