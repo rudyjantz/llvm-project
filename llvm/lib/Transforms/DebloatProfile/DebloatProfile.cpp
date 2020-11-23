@@ -558,17 +558,6 @@ void DebloatProfile::instrument_outside_loop_avail_args(Instruction *call_inst,
             std::vector<Value *> ArgsV;
 
 
-            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, 2, false));
-            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, callsite_id, false));
-            //ArgsV.push_back(llvm::ConstantInt::get(int32Ty, called_func_id, false));
-            //Value *callinstr = builder.CreateCall(userInstrumentFunc, ArgsV);
-            //LLVM_DEBUG(dbgs() << "callinstr(loop)::" << *callinstr << "\n");
-
-
-
-
-
-
 
             ArgsV.push_back(llvm::ConstantInt::get(int32Ty, 0, false));
 
