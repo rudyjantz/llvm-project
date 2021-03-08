@@ -249,7 +249,10 @@ static cl::opt<InliningAdvisorMode> UseInlineAdvisor(
                clEnumValN(InliningAdvisorMode::Development, "development",
                           "Use development mode (runtime-loadable model)."),
                clEnumValN(InliningAdvisorMode::Release, "release",
-                          "Use release mode (AOT-compiled model).")));
+                          "Use release mode (AOT-compiled model)."),
+               clEnumValN(InliningAdvisorMode::Replay, "replay",
+                          "Use the replay.")
+               ));
 
 static cl::opt<bool> EnableSyntheticCounts(
     "enable-npm-synthetic-counts", cl::init(false), cl::Hidden, cl::ZeroOrMore,

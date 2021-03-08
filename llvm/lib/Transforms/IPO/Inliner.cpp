@@ -359,7 +359,7 @@ inlineCallsImpl(CallGraphSCC &SCC, CallGraph &CG,
               return OptimizationRemarkMissed(DEBUG_TYPE, "NoDefinition", &I)
                      << NV("Callee", Callee) << " will not be inlined into "
                      << NV("Caller", CB->getCaller())
-                     << " because its definition is unavailable"
+                     << " because its definition is unavailable (legacy)"
                      << setIsVerbose();
             });
             continue;
@@ -752,7 +752,7 @@ PreservedAnalyses InlinerPass::run(LazyCallGraph::SCC &InitialC,
               return OptimizationRemarkMissed(DEBUG_TYPE, "NoDefinition", &I)
                      << NV("Callee", Callee) << " will not be inlined into "
                      << NV("Caller", CB->getCaller())
-                     << " because its definition is unavailable"
+                     << " because its definition is unavailable (new!)"
                      << setIsVerbose();
             });
           }

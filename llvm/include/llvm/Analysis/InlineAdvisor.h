@@ -38,7 +38,8 @@ class OptimizationRemarkEmitter;
 enum class InliningAdvisorMode : int {
   Default,
   Release,
-  Development
+  Development,
+  Replay
 };
 
 class InlineAdvisor;
@@ -238,6 +239,9 @@ public:
 
   Result run(Module &M, ModuleAnalysisManager &MAM) { return Result(M, MAM); }
 };
+
+std::unique_ptr<InlineAdvisor>
+getReplayModeAdvisor(Module &M, FunctionAnalysisManager &MAM);
 
 #ifdef LLVM_HAVE_TF_AOT
 std::unique_ptr<InlineAdvisor>

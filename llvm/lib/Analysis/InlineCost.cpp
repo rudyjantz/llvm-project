@@ -43,6 +43,10 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/Analysis/InlineAdvisor.h"
+
+#include <string>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "inline-cost"
@@ -912,6 +916,7 @@ public:
   InlineCostAnnotationWriter Writer;
 
   void dump();
+  void remarkDump(OptimizationRemarkEmitter &ORE);
 
   // Prints the same analysis as dump(), but its definition is not dependent
   // on the build.
@@ -2412,6 +2417,31 @@ void InlineCostCallAnalyzer::print() {
 #undef DEBUG_PRINT_STAT
 }
 
+void InlineCostCallAnalyzer::remarkDump(OptimizationRemarkEmitter &ORE) {
+#define DEBUG_PRINT_STAT(x) Remark << ore::NV(#x, x)
+  ORE.emit([&]() {
+    OptimizationRemark Remark(DEBUG_TYPE, "InlineDebugDump",
+                              CandidateCall.getDebugLoc(), CandidateCall.getParent());
+    Remark << ore::NV("Callee", &F);
+    Remark << ore::NV("DebugLocForReplay", getCallSiteLocation(CandidateCall.getDebugLoc()));
+      DEBUG_PRINT_STAT(NumConstantArgs);
+      DEBUG_PRINT_STAT(NumConstantOffsetPtrArgs);
+      DEBUG_PRINT_STAT(NumAllocaArgs);
+      DEBUG_PRINT_STAT(NumConstantPtrCmps);
+      DEBUG_PRINT_STAT(NumConstantPtrDiffs);
+      DEBUG_PRINT_STAT(NumInstructionsSimplified);
+      DEBUG_PRINT_STAT(NumInstructions);
+      DEBUG_PRINT_STAT(SROACostSavings);
+      DEBUG_PRINT_STAT(SROACostSavingsLost);
+      DEBUG_PRINT_STAT(LoadEliminationCost);
+      DEBUG_PRINT_STAT(ContainsNoDuplicateCall);
+      DEBUG_PRINT_STAT(Cost);
+      DEBUG_PRINT_STAT(Threshold);
+    return Remark;
+  });
+#undef DEBUG_PRINT_STAT
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// Dump stats about this call's analysis.
 LLVM_DUMP_METHOD void InlineCostCallAnalyzer::dump() {
@@ -2601,9 +2631,14 @@ InlineCost llvm::getInlineCost(
                           << "... (caller:" << Call.getCaller()->getName()
                           << ")\n");
 
+  Function *Caller = Call.getCaller();
+  OptimizationRemarkEmitter ORE2(Caller);
+
   InlineCostCallAnalyzer CA(*Callee, Call, Params, CalleeTTI,
                             GetAssumptionCache, GetBFI, PSI, ORE);
   InlineResult ShouldInline = CA.analyze();
+
+  CA.remarkDump(ORE2);
 
   LLVM_DEBUG(CA.dump());
 

@@ -24,6 +24,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <sstream>
+#include <cstdlib>
 
 using namespace llvm;
 #define DEBUG_TYPE "inline"
@@ -92,6 +93,7 @@ llvm::Optional<llvm::InlineCost> static getDefaultInlineAdvice(
 
   auto GetInlineCost = [&](CallBase &CB) {
     Function &Callee = *CB.getCalledFunction();
+
     auto &CalleeTTI = FAM.getResult<TargetIRAnalysis>(Callee);
     bool RemarksEnabled =
         Callee.getContext().getDiagHandlerPtr()->isMissedOptRemarkEnabled(
@@ -158,6 +160,9 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
 #ifdef LLVM_HAVE_TF_AOT
     Advisor = llvm::getReleaseModeAdvisor(M, MAM);
 #endif
+    break;
+  case InliningAdvisorMode::Replay:
+    Advisor = llvm::getReplayModeAdvisor(M, FAM);
     break;
   }
   return !!Advisor;
@@ -264,11 +269,11 @@ template <class RemarkT>
 RemarkT &operator<<(RemarkT &&R, const InlineCost &IC) {
   using namespace ore;
   if (IC.isAlways()) {
-    R << "(cost=always)";
+    R << "(cost=MYalways)";
   } else if (IC.isNever()) {
-    R << "(cost=never)";
+    R << "(cost=MYnever)";
   } else {
-    R << "(cost=" << ore::NV("Cost", IC.getCost())
+    R << "(cost=MY" << ore::NV("Cost", IC.getCost())
       << ", threshold=" << ore::NV("Threshold", IC.getThreshold()) << ")";
   }
   if (const char *Reason = IC.getReason())

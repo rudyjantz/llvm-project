@@ -656,6 +656,7 @@ PreservedAnalyses GVN::run(Function &F, FunctionAnalysisManager &AM) {
   // significant! Re-ordering these variables will cause GVN when run alone to
   // be less effective! We should fix memdep and basic-aa to not exhibit this
   // behavior, but until then don't change the order here.
+  LLVM_DEBUG(dbgs() << "GVN start on: " << F.getName() << '\n');
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
@@ -677,6 +678,7 @@ PreservedAnalyses GVN::run(Function &F, FunctionAnalysisManager &AM) {
     PA.preserve<MemorySSAAnalysis>();
   if (LI)
     PA.preserve<LoopAnalysis>();
+  LLVM_DEBUG(dbgs() << "GVN end on: " << F.getName() << '\n');
   return PA;
 }
 
@@ -2888,7 +2890,8 @@ public:
     auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
 
     auto *MSSAWP = getAnalysisIfAvailable<MemorySSAWrapperPass>();
-    return Impl.runImpl(
+    LLVM_DEBUG(dbgs() << "GVN legacy start on: " << F.getName() << '\n');
+    auto to_ret = Impl.runImpl(
         F, getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F),
         getAnalysis<DominatorTreeWrapperPass>().getDomTree(),
         getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F),
@@ -2899,6 +2902,8 @@ public:
         LIWP ? &LIWP->getLoopInfo() : nullptr,
         &getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE(),
         MSSAWP ? &MSSAWP->getMSSA() : nullptr);
+    LLVM_DEBUG(dbgs() << "GVN legacy end on: " << F.getName() << '\n');
+    return to_ret;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

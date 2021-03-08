@@ -46,8 +46,10 @@ ReplayInlineAdvisor::ReplayInlineAdvisor(FunctionAnalysisManager &FAM,
 
     auto CallSite = Pair.second.split(";").first;
 
-    if (Callee.empty() || CallSite.empty())
+    if (Callee.empty() || CallSite.empty()) {
+      InlineSitesFromRemarks.insert(Line.str());
       continue;
+    }
 
     std::string Combined = (Callee + CallSite).str();
     InlineSitesFromRemarks.insert(Combined);
@@ -62,20 +64,40 @@ std::unique_ptr<InlineAdvice> ReplayInlineAdvisor::getAdviceImpl(CallBase &CB) {
   Function &Caller = *CB.getCaller();
   auto &ORE = FAM.getResult<OptimizationRemarkEmitterAnalysis>(Caller);
 
-  if (InlineSitesFromRemarks.empty())
-    return std::make_unique<DefaultInlineAdvice>(this, CB, None, ORE,
-                                                 EmitRemarks);
+ //if (InlineSitesFromRemarks.empty())
+ //  return std::make_unique<DefaultInlineAdvice>(this, CB, None, ORE,
+ //                                                EmitRemarks);
 
   std::string CallSiteLoc = getCallSiteLocation(CB.getDebugLoc());
   StringRef Callee = CB.getCalledFunction()->getName();
   std::string Combined = (Callee + CallSiteLoc).str();
   auto Iter = InlineSitesFromRemarks.find(Combined);
-
+  //Replay inliner checking for : atoisetup_epd_line:39:20
+  LLVM_DEBUG(dbgs() << "Replay inliner checking for : " << Combined << '\n');
   Optional<InlineCost> InlineRecommended = None;
   if (Iter != InlineSitesFromRemarks.end()) {
     InlineRecommended = llvm::InlineCost::getAlways("found in replay");
+
+    ORE.emit([&]() {
+      OptimizationRemark Remark(DEBUG_TYPE, "ReplayReport", CB.getDebugLoc(), CB.getParent());
+      Remark << ore::NV("LookingFor", Combined);
+      Remark << ore::NV("FoundInReplay", "YesFoundInReplay");
+      return Remark;
+    });
+  } else {
+    ORE.emit([&]() {
+      OptimizationRemark Remark(DEBUG_TYPE, "ReplayReport", CB.getDebugLoc(), CB.getParent());
+      Remark << ore::NV("LookingFor", Combined);
+      Remark << ore::NV("FoundInReplay", "NoNotFoundInReplay");
+      return Remark;
+    });
   }
 
   return std::make_unique<DefaultInlineAdvice>(this, CB, InlineRecommended, ORE,
                                                EmitRemarks);
+}
+
+std::unique_ptr<InlineAdvisor>
+llvm::getReplayModeAdvisor(Module &M, FunctionAnalysisManager &FAM) {
+  return std::make_unique<ReplayInlineAdvisor>(FAM, M.getContext(), StringRef(std::getenv("REPLAY_REMARKS_FILE")), /*EmitRemarks=*/ true);
 }
